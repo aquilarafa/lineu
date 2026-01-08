@@ -7,34 +7,40 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <style>
     :root {
-      --pending: #f59e0b;
-      --processing: #3b82f6;
-      --completed: #10b981;
-      --failed: #ef4444;
-      --duplicate: #6b7280;
+      --bg: #0d0d0d;
+      --bg-surface: #1a1a1a;
+      --text: #f0f0ec;
+      --text-muted: #888;
+      --border: #333;
+      --accent: #f97316;
+      --success: #22c55e;
+      --error: #ef4444;
+      --warning: #f59e0b;
+      --info: #6366f1;
     }
-    body { font-family: system-ui; max-width: 1200px; margin: 0 auto; padding: 1rem; }
+    body { background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; max-width: 1200px; margin: 0 auto; padding: 1rem; }
+    a { color: var(--accent); }
     .stats { display: flex; gap: 1rem; margin-bottom: 1rem; }
-    .stat { padding: 1rem; border-radius: 8px; color: white; flex: 1; text-align: center; }
-    .stat-pending { background: var(--pending); }
-    .stat-processing { background: var(--processing); }
-    .stat-completed { background: var(--completed); }
-    .stat-failed { background: var(--failed); }
+    .stat { padding: 1rem; border-radius: 8px; color: white; flex: 1; text-align: center; background: var(--bg-surface); border: 1px solid var(--border); }
+    .stat-pending { border-left: 4px solid var(--warning); }
+    .stat-processing { border-left: 4px solid var(--info); }
+    .stat-completed { border-left: 4px solid var(--success); }
+    .stat-failed { border-left: 4px solid var(--error); }
     .stat h2 { margin: 0; font-size: 2rem; }
-    .stat span { font-size: 0.875rem; opacity: 0.9; }
+    .stat span { font-size: 0.875rem; color: var(--text-muted); }
     table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
-    th, td { padding: 0.5rem; text-align: left; border-bottom: 1px solid #e5e7eb; }
-    th { background: #f9fafb; }
+    th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--text-muted); font-size: 12px; text-transform: uppercase; background: transparent; }
     .status { padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; color: white; }
-    .status-pending { background: var(--pending); }
-    .status-processing { background: var(--processing); }
-    .status-completed { background: var(--completed); }
-    .status-failed { background: var(--failed); }
-    .status-duplicate { background: var(--duplicate); }
-    a { color: #3b82f6; }
+    .status-pending { background: var(--warning); }
+    .status-processing { background: var(--info); }
+    .status-completed { background: var(--success); }
+    .status-failed { background: var(--error); }
+    .status-duplicate { background: var(--text-muted); }
     .chart-container { height: 200px; }
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .refresh-info { color: #6b7280; font-size: 0.875rem; }
+    .refresh-info { color: var(--text-muted); font-size: 0.875rem; }
+    .mono { font-family: monospace; font-size: 12px; color: var(--text-muted); }
   </style>
 </head>
 <body>
@@ -72,6 +78,9 @@
   </div>
 
   <script>
+    Chart.defaults.color = '#888';
+    Chart.defaults.borderColor = '#333';
+
     let chart;
 
     async function loadDashboard() {

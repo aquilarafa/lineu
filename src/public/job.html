@@ -5,36 +5,49 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Job - Lineu</title>
   <style>
+    :root {
+      --bg: #0d0d0d;
+      --bg-surface: #1a1a1a;
+      --text: #f0f0ec;
+      --text-muted: #888;
+      --border: #333;
+      --accent: #f97316;
+      --success: #22c55e;
+      --error: #ef4444;
+      --warning: #f59e0b;
+      --info: #6366f1;
+    }
     * { box-sizing: border-box; }
-    body { font-family: system-ui, sans-serif; max-width: 1200px; margin: 0 auto; padding: 1rem; background: #f5f5f5; }
+    body { background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; max-width: 1200px; margin: 0 auto; padding: 1rem; }
+    a { color: var(--accent); }
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
     .status { padding: 0.25rem 0.75rem; border-radius: 4px; font-weight: 600; color: white; }
-    .status.pending { background: #f59e0b; }
-    .status.processing { background: #3b82f6; }
-    .status.completed { background: #10b981; }
-    .status.failed { background: #ef4444; }
-    .status.duplicate { background: #6b7280; }
-    .section { background: white; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    .section h2 { margin-top: 0; font-size: 1rem; color: #374151; }
+    .status.pending { background: var(--warning); }
+    .status.processing { background: var(--info); }
+    .status.completed { background: var(--success); }
+    .status.failed { background: var(--error); }
+    .status.duplicate { background: var(--text-muted); }
+    .section { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+    .section h2 { margin-top: 0; font-size: 1rem; color: var(--text); }
     pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 6px; overflow: auto; max-height: 400px; font-family: 'SF Mono', Monaco, monospace; font-size: 13px; line-height: 1.5; margin: 0; }
-    .meta { color: #6b7280; font-size: 0.875rem; }
+    .meta { color: var(--text-muted); font-size: 0.875rem; }
     .linear-link { background: #5e6ad2; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; text-decoration: none; font-size: 0.875rem; }
-    .error-banner { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 1rem; border-radius: 6px; margin-bottom: 1rem; }
-    .back-link { color: #3b82f6; text-decoration: none; font-size: 0.875rem; }
+    .error-banner { background: rgba(239, 68, 68, 0.1); border: 1px solid var(--error); color: var(--error); padding: 1rem; border-radius: 6px; margin-bottom: 1rem; }
+    .back-link { color: var(--accent); text-decoration: none; font-size: 0.875rem; }
     .back-link:hover { text-decoration: underline; }
 
     /* Session Timeline */
     .session { display: flex; flex-direction: column; gap: 0.5rem; }
-    .event { padding: 0.5rem 0.75rem; border-radius: 4px; border-left: 3px solid #444; background: #fafafa; }
-    .event .time { color: #888; font-size: 0.75rem; font-family: monospace; }
-    .event.text { border-left-color: #3b82f6; }
-    .event.tool_use { border-left-color: #f59e0b; }
-    .event.tool_result { border-left-color: #10b981; }
-    .event.error { border-left-color: #ef4444; background: #fef2f2; }
-    .event.result { border-left-color: #10b981; background: #f0fdf4; }
-    .event .tool { font-weight: 600; color: #f59e0b; }
-    .event .tool-input { font-family: monospace; font-size: 0.85rem; color: #666; }
-    .event .result-output { font-family: monospace; font-size: 0.8rem; color: #555; max-height: 100px; overflow: auto; background: #f0f0f0; padding: 0.5rem; border-radius: 4px; margin-top: 0.25rem; white-space: pre-wrap; }
+    .event { padding: 0.5rem 0.75rem; border-radius: 4px; border-left: 3px solid var(--border); background: var(--bg-surface); }
+    .event .time { color: var(--text-muted); font-size: 0.75rem; font-family: monospace; }
+    .event.text { border-left-color: var(--info); }
+    .event.tool_use { border-left-color: var(--warning); }
+    .event.tool_result { border-left-color: var(--success); }
+    .event.error { border-left-color: var(--error); background: rgba(239, 68, 68, 0.1); }
+    .event.result { border-left-color: var(--success); background: rgba(34, 197, 94, 0.1); }
+    .event .tool { font-weight: 600; color: var(--warning); }
+    .event .tool-input { font-family: monospace; font-size: 0.85rem; color: var(--text-muted); }
+    .event .result-output { font-family: monospace; font-size: 0.8rem; color: var(--text-muted); max-height: 100px; overflow: auto; background: var(--bg); padding: 0.5rem; border-radius: 4px; margin-top: 0.25rem; white-space: pre-wrap; }
   </style>
 </head>
 <body>
