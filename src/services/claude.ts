@@ -26,8 +26,8 @@ export class ClaudeService {
     }
   }
 
-  async analyze(repoPath: string, payload: Record<string, unknown>, jobId?: number): Promise<ClaudeAnalysis> {
-    const prompt = this.buildPrompt(payload);
+  async analyze(repoPath: string, payload: Record<string, unknown>, jobId?: number, teamList?: string): Promise<ClaudeAnalysis> {
+    const prompt = this.buildPrompt(payload, teamList);
     const logFile = path.join(this.logDir, `claude-${jobId || Date.now()}.log`);
     const logStream = fs.createWriteStream(logFile, { flags: 'a' });
 
@@ -37,14 +37,15 @@ export class ClaudeService {
     logStream.write(`Prompt:\n${prompt}\n\n`);
 
     return new Promise((resolve, reject) => {
-      const proc = spawn('claude', [
+      const claudePath = process.env.CLAUDE_PATH || 'claude';
+      const proc = spawn(claudePath, [
         '-p', prompt,
         '--output-format', 'stream-json',
         '--max-turns', String(this.maxTurns),
         '--verbose',
       ], {
         cwd: repoPath,
-        stdio: ['ignore', 'pipe', 'pipe'], // Close stdin, pipe stdout/stderr
+        stdio: ['ignore', 'pipe', 'pipe'],
       });
 
       // Manual timeout
@@ -113,7 +114,18 @@ export class ClaudeService {
     });
   }
 
-  private buildPrompt(payload: Record<string, unknown>): string {
+  private buildPrompt(payload: Record<string, unknown>, teamList?: string): string {
+    const teamSection = teamList ? `
+## Times Disponíveis
+
+${teamList}
+
+Para escolher o time:
+1. Se encontrar CODEOWNERS, use o owner dos arquivos afetados
+2. Se não, escolha baseado no contexto do erro
+3. Se incerto, retorne null (mas tente escolher!)
+` : '';
+
     return `Você é um analisador de erros de produção. Analise rapidamente e responda APENAS com JSON.
 
 ## Payload do Erro
@@ -121,14 +133,15 @@ export class ClaudeService {
 \`\`\`json
 ${JSON.stringify(payload, null, 2)}
 \`\`\`
-
+${teamSection}
 ## Instruções IMPORTANTES
 
 IMPORTANTE: Você tem no MÁXIMO 5 buscas para investigar. Após isso, DEVE responder com JSON.
 
 1. Faça 1-2 buscas rápidas (grep/glob) para localizar arquivos relevantes
-2. Leia no máximo 2-3 arquivos chave
-3. IMEDIATAMENTE responda com o JSON abaixo
+2. Se existir CODEOWNERS, leia para entender ownership
+3. Leia no máximo 2-3 arquivos chave
+4. IMEDIATAMENTE responda com o JSON abaixo
 
 NÃO continue investigando indefinidamente. Faça uma hipótese rápida baseada no que encontrou.
 
@@ -143,7 +156,8 @@ NÃO continue investigando indefinidamente. Faça uma hipótese rápida baseada 
   "root_cause_hypothesis": "Causa provável baseada na investigação",
   "suggested_fix": "Como resolver",
   "investigation_steps": ["Passo 1", "Passo 2"],
-  "related_code": "Snippet relevante encontrado"
+  "related_code": "Snippet relevante encontrado",
+  "suggested_team": "TEAM_KEY ou null se incerto"
 }
 \`\`\`
 

@@ -16,10 +16,9 @@ export function loadConfig(overrides: ConfigOverrides = {}): LineuConfig {
   }
 
   const linearApiKey = process.env.LINEAR_API_KEY;
-  const linearTeamId = process.env.LINEAR_TEAM_ID;
 
-  if (!linearApiKey || !linearTeamId) {
-    throw new Error('LINEAR_API_KEY and LINEAR_TEAM_ID are required');
+  if (!linearApiKey) {
+    throw new Error('LINEAR_API_KEY is required');
   }
 
   // New Relic config (optional)
@@ -43,7 +42,6 @@ export function loadConfig(overrides: ConfigOverrides = {}): LineuConfig {
     },
     linear: {
       apiKey: linearApiKey,
-      teamId: linearTeamId,
     },
     newrelic: newrelicApiKey && newrelicAccountId ? {
       apiKey: newrelicApiKey,

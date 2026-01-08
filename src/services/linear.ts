@@ -1,41 +1,54 @@
 import { LinearClient } from '@linear/sdk';
-import type { ClaudeAnalysis, LinearIssue } from '../types.js';
+import type { ClaudeAnalysis, LinearIssue, TeamInfo } from '../types.js';
 
 export class LinearService {
   private client: LinearClient;
-  private teamIdOrKey: string;
-  private resolvedTeamId: string | null = null;
+  private teams: Map<string, TeamInfo> = new Map();
 
-  constructor(config: { apiKey: string; teamId: string }) {
+  constructor(config: { apiKey: string }) {
     this.client = new LinearClient({ apiKey: config.apiKey });
-    this.teamIdOrKey = config.teamId;
   }
 
-  private async getTeamId(): Promise<string> {
-    if (this.resolvedTeamId) {
-      return this.resolvedTeamId;
+  async fetchTeams(): Promise<{ success: boolean; count: number }> {
+    try {
+      const result = await this.client.teams({ first: 100 });
+      for (const team of result.nodes) {
+        this.teams.set(team.key, {
+          id: team.id,
+          key: team.key,
+          name: team.name,
+        });
+      }
+      console.log(`[Linear] Loaded ${result.nodes.length} teams`);
+      return { success: true, count: result.nodes.length };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.error(`[Linear] Failed to fetch teams: ${msg}`);
+      return { success: false, count: 0 };
     }
+  }
 
-    // Check if it's already a UUID
-    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (uuidPattern.test(this.teamIdOrKey)) {
-      this.resolvedTeamId = this.teamIdOrKey;
-      return this.resolvedTeamId;
+  getTeamListForPrompt(): string {
+    if (this.teams.size === 0) return '';
+    return Array.from(this.teams.values())
+      .map(t => `- ${t.key}: ${t.name}`)
+      .join('\n');
+  }
+
+  resolveTeamId(suggestedKey: string | null): string | null {
+    if (!suggestedKey) {
+      return null;
     }
-
-    // Look up team by key
-    const teams = await this.client.teams();
-    const team = teams.nodes.find(t => t.key === this.teamIdOrKey);
-    if (!team) {
-      throw new Error(`Team not found with key: ${this.teamIdOrKey}`);
+    const team = this.teams.get(suggestedKey);
+    if (team) {
+      return team.id;
     }
-
-    this.resolvedTeamId = team.id;
-    console.log(`[Linear] Resolved team key "${this.teamIdOrKey}" to ID: ${this.resolvedTeamId}`);
-    return this.resolvedTeamId;
+    console.warn(`[Linear] Team "${suggestedKey}" not found`);
+    return null;
   }
 
   async createIssue(
+    teamId: string,
     payload: Record<string, unknown>,
     analysis: ClaudeAnalysis,
     fingerprint: string
@@ -47,7 +60,6 @@ export class LinearService {
       low: 4,
     };
 
-    const teamId = await this.getTeamId();
     const result = await this.client.createIssue({
       teamId,
       title: `[${analysis.category.toUpperCase()}] ${analysis.summary}`,

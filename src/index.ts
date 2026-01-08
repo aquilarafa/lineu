@@ -43,6 +43,13 @@ program
     const claude = new ClaudeService(config.claude);
     const linear = new LinearService(config.linear);
 
+    // Fetch teams at startup
+    const teamResult = await linear.fetchTeams();
+    if (!teamResult.success || teamResult.count === 0) {
+      console.error('Error: Failed to load Linear teams. Cannot route issues.');
+      process.exit(1);
+    }
+
     // Start background worker
     const worker = startWorker(config, db, claude, linear);
 
@@ -101,17 +108,31 @@ program
 
     console.log('Payload:', JSON.stringify(payload, null, 2));
     console.log('\nFingerprint:', generateFingerprint(payload));
+
+    // Fetch teams for routing
+    const linear = new LinearService(config.linear);
+    const teamResult = await linear.fetchTeams();
+    if (!teamResult.success || teamResult.count === 0) {
+      console.error('Error: Failed to load Linear teams');
+      process.exit(1);
+    }
+
+    const teamList = linear.getTeamListForPrompt();
     console.log('\nRunning Claude Code analysis...\n');
 
     const claude = new ClaudeService(config.claude);
-    const analysis = await claude.analyze(config.repo.path, payload);
+    const analysis = await claude.analyze(config.repo.path, payload, undefined, teamList);
 
     console.log('Analysis:', JSON.stringify(analysis, null, 2));
 
     if (!opts.dryRun) {
-      console.log('\nCreating Linear issue...');
-      const linear = new LinearService(config.linear);
-      const issue = await linear.createIssue(payload, analysis, generateFingerprint(payload));
+      const teamId = linear.resolveTeamId(analysis.suggested_team);
+      if (!teamId) {
+        console.error(`Error: Invalid team suggestion: ${analysis.suggested_team}`);
+        process.exit(1);
+      }
+      console.log(`\nCreating Linear issue in team ${analysis.suggested_team}...`);
+      const issue = await linear.createIssue(teamId, payload, analysis, generateFingerprint(payload));
       console.log(`Created: ${issue.identifier} - ${issue.url}`);
     } else {
       console.log('\n(Dry run - Linear issue not created)');

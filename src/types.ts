@@ -15,7 +15,6 @@ export interface LineuConfig {
   };
   linear: {
     apiKey: string;
-    teamId: string;
   };
   newrelic?: {
     apiKey: string;
@@ -57,10 +56,17 @@ export interface ClaudeAnalysis {
   suggested_fix: string;
   investigation_steps: string[];
   related_code?: string;
+  suggested_team: string | null;
 }
 
 export interface LinearIssue {
   id: string;
   identifier: string;
   url: string;
+}
+
+export interface TeamInfo {
+  id: string;
+  key: string;
+  name: string;
 }

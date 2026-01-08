@@ -76,15 +76,24 @@ async function processJob(
       return;
     }
 
-    // 2. Execute Claude Code
+    // 2. Get team context
+    const teamList = linear.getTeamListForPrompt();
+
+    // 3. Execute Claude Code
     console.log(`[Job ${job.id}] Analyzing with Claude Code...`);
-    const analysis = await claude.analyze(config.repo.path, payload, job.id);
+    const analysis = await claude.analyze(config.repo.path, payload, job.id, teamList);
 
-    // 3. Create Linear issue
-    console.log(`[Job ${job.id}] Creating Linear issue...`);
-    const issue = await linear.createIssue(payload, analysis, job.fingerprint);
+    // 4. Resolve team
+    const teamId = linear.resolveTeamId(analysis.suggested_team);
+    if (!teamId) {
+      throw new Error(`Invalid team suggestion: ${analysis.suggested_team}`);
+    }
 
-    // 4. Save fingerprint and mark complete
+    // 5. Create Linear issue
+    console.log(`[Job ${job.id}] Creating Linear issue in team ${analysis.suggested_team}...`);
+    const issue = await linear.createIssue(teamId, payload, analysis, job.fingerprint);
+
+    // 6. Save fingerprint and mark complete
     db.insertFingerprint(job.fingerprint, issue.id, issue.identifier);
     db.markCompleted(job.id, issue.id, issue.identifier);
     console.log(`[Job ${job.id}] Completed → ${issue.identifier}`);
