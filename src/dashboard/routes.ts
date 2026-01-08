@@ -30,9 +30,12 @@ export async function registerDashboard(
     authenticate: true,
   });
 
+  // Auth hook that uses app.basicAuth
+  const authHook = app.basicAuth;
+
   // Serve static files with auth
   await app.register(async (instance) => {
-    instance.addHook('onRequest', instance.basicAuth);
+    instance.addHook('onRequest', authHook);
 
     await instance.register(fastifyStatic, {
       root: join(__dirname, '..', 'public'),
@@ -42,7 +45,7 @@ export async function registerDashboard(
 
   // API routes with auth
   await app.register(async (instance) => {
-    instance.addHook('onRequest', instance.basicAuth);
+    instance.addHook('onRequest', authHook);
 
     // API: Stats
     instance.get('/stats', async () => {
