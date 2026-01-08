@@ -126,13 +126,13 @@ program
     console.log('Analysis:', JSON.stringify(analysis, null, 2));
 
     if (!opts.dryRun) {
-      const teamId = linear.resolveTeamId(analysis.suggested_team);
-      if (!teamId) {
-        console.error(`Error: Invalid team suggestion: ${analysis.suggested_team}`);
+      const team = linear.resolveTeamId(analysis.suggested_team);
+      if (!team) {
+        console.error('Error: No teams available in Linear');
         process.exit(1);
       }
-      console.log(`\nCreating Linear issue in team ${analysis.suggested_team}...`);
-      const issue = await linear.createIssue(teamId, payload, analysis, generateFingerprint(payload));
+      console.log(`\nCreating Linear issue in team ${team.key}...`);
+      const issue = await linear.createIssue(team.id, payload, analysis, generateFingerprint(payload));
       console.log(`Created: ${issue.identifier} - ${issue.url}`);
     } else {
       console.log('\n(Dry run - Linear issue not created)');

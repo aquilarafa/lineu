@@ -35,16 +35,23 @@ export class LinearService {
       .join('\n');
   }
 
-  resolveTeamId(suggestedKey: string | null): string | null {
-    if (!suggestedKey) {
-      return null;
+  getDefaultTeam(): { id: string; key: string } | null {
+    const first = this.teams.values().next().value;
+    return first ? { id: first.id, key: first.key } : null;
+  }
+
+  resolveTeamId(suggestedKey: string | null): { id: string; key: string } | null {
+    // Try suggested team first
+    if (suggestedKey) {
+      const team = this.teams.get(suggestedKey);
+      if (team) {
+        return { id: team.id, key: team.key };
+      }
+      console.warn(`[Linear] Team "${suggestedKey}" not found, using fallback`);
     }
-    const team = this.teams.get(suggestedKey);
-    if (team) {
-      return team.id;
-    }
-    console.warn(`[Linear] Team "${suggestedKey}" not found`);
-    return null;
+
+    // Fallback to first team
+    return this.getDefaultTeam();
   }
 
   async createIssue(

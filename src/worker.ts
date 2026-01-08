@@ -91,15 +91,15 @@ async function processJob(
     console.log(`[Job ${job.id}] Analyzing with Claude Code...`);
     const analysis = await claude.analyze(config.repo.path, payload, job.id, teamList);
 
-    // 4. Resolve team
-    const teamId = linear.resolveTeamId(analysis.suggested_team);
-    if (!teamId) {
-      throw new Error(`Invalid team suggestion: ${analysis.suggested_team}`);
+    // 4. Resolve team (with fallback to first team)
+    const team = linear.resolveTeamId(analysis.suggested_team);
+    if (!team) {
+      throw new Error('No teams available in Linear');
     }
 
     // 5. Create Linear issue
-    console.log(`[Job ${job.id}] Creating Linear issue in team ${analysis.suggested_team}...`);
-    const issue = await linear.createIssue(teamId, payload, analysis, job.fingerprint);
+    console.log(`[Job ${job.id}] Creating Linear issue in team ${team.key}...`);
+    const issue = await linear.createIssue(team.id, payload, analysis, job.fingerprint);
 
     // 6. Save fingerprint and mark complete
     db.insertFingerprint(job.fingerprint, issue.id, issue.identifier);
