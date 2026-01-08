@@ -8,18 +8,28 @@ export interface Worker {
   stop: () => void;
 }
 
+export interface WorkerOptions {
+  dryRun?: boolean;
+}
+
 export function startWorker(
   config: LineuConfig,
   db: LineuDatabase,
   claude: ClaudeService,
-  linear: LinearService
+  linear: LinearService,
+  options: WorkerOptions = {}
 ): Worker {
   let running = true;
+  const { dryRun = false } = options;
+
+  if (dryRun) {
+    console.log('[Worker] Running in DRY-RUN mode - no Linear issues will be created');
+  }
 
   // Process pending jobs at configured interval
   const processInterval = setInterval(() => {
     if (!running) return;
-    processJobs(config, db, claude, linear).catch(err => {
+    processJobs(config, db, claude, linear, dryRun).catch(err => {
       console.error('Worker error:', err);
     });
   }, config.worker.pollInterval);
@@ -48,12 +58,13 @@ async function processJobs(
   config: LineuConfig,
   db: LineuDatabase,
   claude: ClaudeService,
-  linear: LinearService
+  linear: LinearService,
+  dryRun: boolean
 ): Promise<void> {
   let job: ClaimedJob | undefined;
 
   while ((job = db.claimNextJob())) {
-    await processJob(job, config, db, claude, linear);
+    await processJob(job, config, db, claude, linear, dryRun);
   }
 }
 
@@ -62,7 +73,8 @@ async function processJob(
   config: LineuConfig,
   db: LineuDatabase,
   claude: ClaudeService,
-  linear: LinearService
+  linear: LinearService,
+  dryRun: boolean
 ): Promise<void> {
   const payload = JSON.parse(job.payload) as Record<string, unknown>;
 
@@ -97,14 +109,21 @@ async function processJob(
       throw new Error('No teams available in Linear');
     }
 
-    // 5. Create Linear issue
-    console.log(`[Job ${job.id}] Creating Linear issue in team ${team.key}...`);
-    const issue = await linear.createIssue(team.id, payload, analysis, job.fingerprint);
+    // 5. Create Linear issue (or skip in dry-run mode)
+    if (dryRun) {
+      console.log(`[Job ${job.id}] DRY-RUN: Would create issue in team ${team.key}`);
+      console.log(`[Job ${job.id}] Analysis:`, JSON.stringify(analysis, null, 2));
+      db.markCompleted(job.id, 'dry-run', `DRY-RUN-${team.key}`, JSON.stringify(analysis));
+      console.log(`[Job ${job.id}] Completed (dry-run)`);
+    } else {
+      console.log(`[Job ${job.id}] Creating Linear issue in team ${team.key}...`);
+      const issue = await linear.createIssue(team.id, payload, analysis, job.fingerprint);
 
-    // 6. Save fingerprint and mark complete
-    db.insertFingerprint(job.fingerprint, issue.id, issue.identifier);
-    db.markCompleted(job.id, issue.id, issue.identifier, JSON.stringify(analysis));
-    console.log(`[Job ${job.id}] Completed → ${issue.identifier}`);
+      // 6. Save fingerprint and mark complete
+      db.insertFingerprint(job.fingerprint, issue.id, issue.identifier);
+      db.markCompleted(job.id, issue.id, issue.identifier, JSON.stringify(analysis));
+      console.log(`[Job ${job.id}] Completed → ${issue.identifier}`);
+    }
 
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';

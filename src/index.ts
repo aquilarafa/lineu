@@ -21,6 +21,7 @@ program
   .option('-r, --repo <path>', 'Path to local repository')
   .option('-u, --repo-url <url>', 'Git URL to clone (e.g., git@github.com:org/repo.git)')
   .option('-p, --port <number>', 'Port', '3000')
+  .option('--dry-run', 'Process jobs but do not create Linear issues')
   .action(async (opts) => {
     // Resolve repository path
     let repoPath = opts.repo;
@@ -51,19 +52,20 @@ program
     }
 
     // Start background worker
-    const worker = startWorker(config, db, claude, linear);
+    const worker = startWorker(config, db, claude, linear, { dryRun: opts.dryRun });
 
     // Start HTTP server
     const server = await createServer(config, db);
     await server.listen({ port: config.server.port, host: '0.0.0.0' });
 
+    const dryRunMsg = opts.dryRun ? '\n  Mode:    DRY-RUN (no Linear issues created)' : '';
     console.log(`
 Lineu running!
   Repo:    ${config.repo.path}
   Webhook: http://localhost:${config.server.port}/webhook
   Health:  http://localhost:${config.server.port}/health
   Jobs:    http://localhost:${config.server.port}/jobs/:id
-  Stats:   http://localhost:${config.server.port}/stats
+  Stats:   http://localhost:${config.server.port}/stats${dryRunMsg}
     `);
 
     // Graceful shutdown
