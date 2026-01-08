@@ -133,15 +133,21 @@ export class NewRelicService {
     };
   }
 
-  async getErrorsByEntityGuid(entityGuid: string, since = '1 hour ago'): Promise<ErrorDetails[]> {
+  async getErrorsByEntityGuid(entityGuid: string, since = '1 hour ago', errorClass?: string): Promise<ErrorDetails[]> {
     const safeGuid = sanitizeNrqlInput(entityGuid, 'entityGuid');
     const safeSince = sanitizeNrqlInput(since, 'since');
+
+    let whereClause = `entityGuid = '${safeGuid}'`;
+    if (errorClass) {
+      const safeErrorClass = sanitizeNrqlInput(errorClass, 'errorClass');
+      whereClause += ` AND error.class = '${safeErrorClass}'`;
+    }
 
     const query = `
       {
         actor {
           account(id: ${this.accountId}) {
-            nrql(query: "SELECT * FROM TransactionError WHERE entityGuid = '${safeGuid}' SINCE ${safeSince} LIMIT 5") {
+            nrql(query: "SELECT * FROM TransactionError WHERE ${whereClause} SINCE ${safeSince} LIMIT 5") {
               results
             }
           }
@@ -163,16 +169,22 @@ export class NewRelicService {
     }));
   }
 
-  async getRecentErrors(appName: string, since = '1 hour ago', limit = 5): Promise<ErrorDetails[]> {
+  async getRecentErrors(appName: string, since = '1 hour ago', limit = 5, errorClass?: string): Promise<ErrorDetails[]> {
     const safeAppName = sanitizeNrqlInput(appName, 'appName');
     const safeSince = sanitizeNrqlInput(since, 'since');
     // limit is a number, no need for string sanitization
+
+    let whereClause = `appName = '${safeAppName}'`;
+    if (errorClass) {
+      const safeErrorClass = sanitizeNrqlInput(errorClass, 'errorClass');
+      whereClause += ` AND error.class = '${safeErrorClass}'`;
+    }
 
     const query = `
       {
         actor {
           account(id: ${this.accountId}) {
-            nrql(query: "SELECT * FROM TransactionError WHERE appName = '${safeAppName}' SINCE ${safeSince} LIMIT ${limit}") {
+            nrql(query: "SELECT * FROM TransactionError WHERE ${whereClause} SINCE ${safeSince} LIMIT ${limit}") {
               results
             }
           }
