@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="30">
+  <title>Lineu Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <style>
+    :root {
+      --pending: #f59e0b;
+      --processing: #3b82f6;
+      --completed: #10b981;
+      --failed: #ef4444;
+      --duplicate: #6b7280;
+    }
+    body { font-family: system-ui; max-width: 1200px; margin: 0 auto; padding: 1rem; }
+    .stats { display: flex; gap: 1rem; margin-bottom: 1rem; }
+    .stat { padding: 1rem; border-radius: 8px; color: white; flex: 1; text-align: center; }
+    .stat-pending { background: var(--pending); }
+    .stat-processing { background: var(--processing); }
+    .stat-completed { background: var(--completed); }
+    .stat-failed { background: var(--failed); }
+    .stat h2 { margin: 0; font-size: 2rem; }
+    .stat span { font-size: 0.875rem; opacity: 0.9; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+    th, td { padding: 0.5rem; text-align: left; border-bottom: 1px solid #e5e7eb; }
+    th { background: #f9fafb; }
+    .status { padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; color: white; }
+    .status-pending { background: var(--pending); }
+    .status-processing { background: var(--processing); }
+    .status-completed { background: var(--completed); }
+    .status-failed { background: var(--failed); }
+    .status-duplicate { background: var(--duplicate); }
+    a { color: #3b82f6; }
+    .chart-container { height: 200px; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .refresh-info { color: #6b7280; font-size: 0.875rem; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Lineu Dashboard</h1>
+    <span class="refresh-info">Auto-refresh: 30s</span>
+  </div>
+
+  <div class="stats" id="stats">
+    <div class="stat stat-pending"><h2>-</h2><span>Pending</span></div>
+    <div class="stat stat-processing"><h2>-</h2><span>Processing</span></div>
+    <div class="stat stat-completed"><h2>-</h2><span>Completed</span></div>
+    <div class="stat stat-failed"><h2>-</h2><span>Failed</span></div>
+  </div>
+
+  <h2>Recent Jobs</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Status</th>
+        <th>Fingerprint</th>
+        <th>Duration</th>
+        <th>Linear</th>
+        <th>Created</th>
+      </tr>
+    </thead>
+    <tbody id="jobs"></tbody>
+  </table>
+
+  <h2>Jobs/Hour (24h)</h2>
+  <div class="chart-container">
+    <canvas id="chart"></canvas>
+  </div>
+
+  <script>
+    let chart;
+
+    async function loadDashboard() {
+      const [statsRes, jobsRes, timelineRes] = await Promise.all([
+        fetch('/api/dashboard/stats'),
+        fetch('/api/dashboard/jobs'),
+        fetch('/api/dashboard/timeline')
+      ]);
+
+      const stats = await statsRes.json();
+      const jobs = await jobsRes.json();
+      const timeline = await timelineRes.json();
+
+      // Update stats
+      document.querySelector('.stat-pending h2').textContent = stats.pending;
+      document.querySelector('.stat-completed h2').textContent = stats.completed;
+      document.querySelector('.stat-failed h2').textContent = stats.failed;
+
+      // Update jobs table
+      document.getElementById('jobs').innerHTML = jobs.map(job => `
+        <tr>
+          <td>${job.id}</td>
+          <td><span class="status status-${job.status}">${job.status}</span></td>
+          <td>${job.fingerprint.slice(0, 8)}</td>
+          <td>${job.duration_seconds ? Math.round(job.duration_seconds) + 's' : '-'}</td>
+          <td>${job.linear_identifier
+            ? `<a href="https://linear.app/issue/${job.linear_identifier}" target="_blank">${job.linear_identifier}</a>`
+            : '-'}</td>
+          <td>${timeAgo(job.created_at)}</td>
+        </tr>
+      `).join('');
+
+      // Update chart
+      if (chart) chart.destroy();
+      chart = new Chart(document.getElementById('chart'), {
+        type: 'bar',
+        data: {
+          labels: timeline.map(t => t.hour.split(' ')[1]),
+          datasets: [
+            { label: 'Completed', data: timeline.map(t => t.completed), backgroundColor: '#10b981' },
+            { label: 'Failed', data: timeline.map(t => t.failed), backgroundColor: '#ef4444' }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
+        }
+      });
+    }
+
+    function timeAgo(dateStr) {
+      const seconds = Math.floor((new Date() - new Date(dateStr + 'Z')) / 1000);
+      if (seconds < 60) return seconds + 's ago';
+      if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
+      if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
+      return Math.floor(seconds / 86400) + 'd ago';
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>

@@ -47,6 +47,24 @@ export interface ClaimedJob {
   fingerprint: string;
 }
 
+export interface DashboardJob {
+  id: number;
+  fingerprint: string;
+  status: string;
+  error: string | null;
+  linear_identifier: string | null;
+  created_at: string;
+  processed_at: string | null;
+  duration_seconds: number | null;
+}
+
+export interface TimelineEntry {
+  hour: string;
+  total: number;
+  completed: number;
+  failed: number;
+}
+
 export interface ClaudeAnalysis {
   category: 'bug' | 'infrastructure' | 'database' | 'external-service' | 'configuration' | 'performance';
   priority: 'critical' | 'high' | 'medium' | 'low';

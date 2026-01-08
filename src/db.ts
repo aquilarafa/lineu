@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import type { Job, ClaimedJob } from './types.js';
+import type { Job, ClaimedJob, DashboardJob, TimelineEntry } from './types.js';
 
 const SCHEMA = `
 -- Job queue for async processing
@@ -44,6 +44,10 @@ export interface LineuDatabase {
 
   // Stats
   getStats: () => { total: number; pending: number; completed: number; failed: number; duplicate: number };
+
+  // Dashboard
+  getRecentJobs: () => DashboardJob[];
+  getTimeline: () => TimelineEntry[];
 
   close: () => void;
 }
@@ -117,6 +121,37 @@ export function createDatabase(dbPath: string): LineuDatabase {
     FROM jobs
   `);
 
+  const getRecentJobsStmt = db.prepare(`
+    SELECT
+      id,
+      fingerprint,
+      status,
+      error,
+      linear_identifier,
+      created_at,
+      processed_at,
+      CASE
+        WHEN processed_at IS NOT NULL
+        THEN (julianday(processed_at) - julianday(created_at)) * 86400
+        ELSE NULL
+      END as duration_seconds
+    FROM jobs
+    ORDER BY created_at DESC
+    LIMIT 100
+  `);
+
+  const getTimelineStmt = db.prepare(`
+    SELECT
+      strftime('%Y-%m-%d %H:00', created_at) as hour,
+      COUNT(*) as total,
+      SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+      SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed
+    FROM jobs
+    WHERE created_at > datetime('now', '-24 hours')
+    GROUP BY hour
+    ORDER BY hour ASC
+  `);
+
   return {
     insertJob: (payload, fingerprint) => {
       const result = insertJobStmt.run(JSON.stringify(payload), fingerprint);
@@ -145,6 +180,10 @@ export function createDatabase(dbPath: string): LineuDatabase {
       insertFingerprintStmt.run(hash, linearIssueId, linearIdentifier),
 
     getStats: () => getStatsStmt.get() as { total: number; pending: number; completed: number; failed: number; duplicate: number },
+
+    getRecentJobs: () => getRecentJobsStmt.all() as DashboardJob[],
+
+    getTimeline: () => getTimelineStmt.all() as TimelineEntry[],
 
     close: () => db.close(),
   };

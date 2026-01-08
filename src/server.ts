@@ -3,6 +3,7 @@ import type { LineuConfig } from './types.js';
 import type { LineuDatabase } from './db.js';
 import { generateFingerprint } from './lib/fingerprint.js';
 import { NewRelicService } from './services/newrelic.js';
+import { registerDashboard } from './dashboard/routes.js';
 
 // New Relic webhook payload structure
 interface NewRelicWebhookPayload {
@@ -191,6 +192,9 @@ export async function createServer(
   app.get('/stats', async () => {
     return db.getStats();
   });
+
+  // Dashboard
+  await registerDashboard(app, db);
 
   return app;
 }
