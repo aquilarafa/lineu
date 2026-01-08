@@ -1,6 +1,7 @@
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import type { ClaudeAnalysis } from '../types.js';
 
 export class ClaudeExecutionError extends Error {
@@ -18,7 +19,7 @@ export class ClaudeService {
   constructor(config: { maxTurns: number; timeout: number }) {
     this.maxTurns = config.maxTurns;
     this.timeout = config.timeout;
-    this.logDir = './logs';
+    this.logDir = path.join(os.homedir(), '.lineu', 'logs');
 
     // Create logs directory
     if (!fs.existsSync(this.logDir)) {
