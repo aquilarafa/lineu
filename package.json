@@ -1,0 +1,30 @@
+{
+  "name": "lineu",
+  "version": "1.0.0",
+  "description": "Error webhook → Claude Code → Linear",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "lineu": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js"
+  },
+  "keywords": ["error-triage", "claude", "linear", "webhook"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@linear/sdk": "^65.2.0",
+    "better-sqlite3": "^11.0.0",
+    "commander": "^12.0.0",
+    "dotenv": "^16.0.0",
+    "fastify": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.0.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.0.0"
+  }
+}

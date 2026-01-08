@@ -1,0 +1,190 @@
+import { spawn } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import type { ClaudeAnalysis } from '../types.js';
+
+export class ClaudeExecutionError extends Error {
+  constructor(message: string, public readonly stderr?: string) {
+    super(message);
+    this.name = 'ClaudeExecutionError';
+  }
+}
+
+export class ClaudeService {
+  private maxTurns: number;
+  private timeout: number;
+  private logDir: string;
+
+  constructor(config: { maxTurns: number; timeout: number }) {
+    this.maxTurns = config.maxTurns;
+    this.timeout = config.timeout;
+    this.logDir = './logs';
+
+    // Create logs directory
+    if (!fs.existsSync(this.logDir)) {
+      fs.mkdirSync(this.logDir, { recursive: true });
+    }
+  }
+
+  async analyze(repoPath: string, payload: Record<string, unknown>, jobId?: number): Promise<ClaudeAnalysis> {
+    const prompt = this.buildPrompt(payload);
+    const logFile = path.join(this.logDir, `claude-${jobId || Date.now()}.log`);
+    const logStream = fs.createWriteStream(logFile, { flags: 'a' });
+
+    console.log(`[Claude] Starting analysis, log: ${logFile}`);
+    logStream.write(`=== Claude Analysis Started at ${new Date().toISOString()} ===\n`);
+    logStream.write(`Repo: ${repoPath}\n`);
+    logStream.write(`Prompt:\n${prompt}\n\n`);
+
+    return new Promise((resolve, reject) => {
+      const proc = spawn('claude', [
+        '-p', prompt,
+        '--output-format', 'stream-json',
+        '--max-turns', String(this.maxTurns),
+        '--verbose',
+      ], {
+        cwd: repoPath,
+        stdio: ['ignore', 'pipe', 'pipe'], // Close stdin, pipe stdout/stderr
+      });
+
+      // Manual timeout
+      const timeoutId = this.timeout > 0 ? setTimeout(() => {
+        logStream.write(`\n=== TIMEOUT after ${this.timeout}ms ===\n`);
+        logStream.end();
+        proc.kill('SIGTERM');
+        reject(new ClaudeExecutionError(`Claude timed out after ${this.timeout}ms`));
+      }, this.timeout) : null;
+
+      let fullOutput = '';
+      let lastResult: unknown = null;
+
+      proc.stdout.on('data', (data) => {
+        const chunk = data.toString();
+        fullOutput += chunk;
+
+        // Log raw output
+        logStream.write(chunk);
+
+        // Also print to console for real-time visibility
+        process.stdout.write(chunk);
+
+        // Try to parse stream-json events
+        const lines = chunk.split('\n').filter((l: string) => l.trim());
+        for (const line of lines) {
+          try {
+            const event = JSON.parse(line);
+            if (event.type === 'result') {
+              lastResult = event;
+            }
+          } catch {
+            // Not JSON, ignore
+          }
+        }
+      });
+
+      proc.stderr.on('data', (data) => {
+        const chunk = data.toString();
+        logStream.write(`[STDERR] ${chunk}`);
+        process.stderr.write(chunk);
+      });
+
+      proc.on('error', (err) => {
+        logStream.write(`\n=== ERROR: ${err.message} ===\n`);
+        logStream.end();
+        reject(new ClaudeExecutionError(`Failed to spawn claude: ${err.message}`));
+      });
+
+      proc.on('close', (code) => {
+        if (timeoutId) clearTimeout(timeoutId);
+
+        logStream.write(`\n=== Claude exited with code ${code} ===\n`);
+        logStream.end();
+
+        if (code !== 0) {
+          reject(new ClaudeExecutionError(`Claude exited with code ${code}`, fullOutput));
+        } else {
+          try {
+            resolve(this.parseStreamOutput(fullOutput, lastResult));
+          } catch (err) {
+            reject(new ClaudeExecutionError(`Failed to parse Claude output: ${err}`, fullOutput));
+          }
+        }
+      });
+    });
+  }
+
+  private buildPrompt(payload: Record<string, unknown>): string {
+    return `Você é um analisador de erros de produção. Analise rapidamente e responda APENAS com JSON.
+
+## Payload do Erro
+
+\`\`\`json
+${JSON.stringify(payload, null, 2)}
+\`\`\`
+
+## Instruções IMPORTANTES
+
+IMPORTANTE: Você tem no MÁXIMO 5 buscas para investigar. Após isso, DEVE responder com JSON.
+
+1. Faça 1-2 buscas rápidas (grep/glob) para localizar arquivos relevantes
+2. Leia no máximo 2-3 arquivos chave
+3. IMEDIATAMENTE responda com o JSON abaixo
+
+NÃO continue investigando indefinidamente. Faça uma hipótese rápida baseada no que encontrou.
+
+## Resposta OBRIGATÓRIA (JSON)
+
+\`\`\`json
+{
+  "category": "bug|infrastructure|database|external-service|configuration|performance",
+  "priority": "critical|high|medium|low",
+  "summary": "Descrição curta (max 80 chars)",
+  "affected_files": ["caminho/arquivo.rb"],
+  "root_cause_hypothesis": "Causa provável baseada na investigação",
+  "suggested_fix": "Como resolver",
+  "investigation_steps": ["Passo 1", "Passo 2"],
+  "related_code": "Snippet relevante encontrado"
+}
+\`\`\`
+
+RESPONDA APENAS COM O JSON ACIMA. Nenhum texto adicional.`;
+  }
+
+  private parseStreamOutput(fullOutput: string, lastResult: unknown): ClaudeAnalysis {
+    // Try to extract from last result event
+    if (lastResult && typeof lastResult === 'object') {
+      const result = lastResult as Record<string, unknown>;
+      if (result.result) {
+        const content = result.result;
+        if (typeof content === 'string') {
+          return this.extractJsonFromText(content);
+        }
+        if (typeof content === 'object' && content !== null) {
+          const obj = content as Record<string, unknown>;
+          if (obj.category && obj.summary) {
+            return obj as unknown as ClaudeAnalysis;
+          }
+        }
+      }
+    }
+
+    // Fallback: try to find JSON in full output
+    return this.extractJsonFromText(fullOutput);
+  }
+
+  private extractJsonFromText(text: string): ClaudeAnalysis {
+    // Try to find JSON block in markdown
+    const jsonMatch = text.match(/```json\n?([\s\S]*?)\n?```/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[1]);
+    }
+
+    // Try to find raw JSON object
+    const objectMatch = text.match(/\{[\s\S]*"category"[\s\S]*"summary"[\s\S]*\}/);
+    if (objectMatch) {
+      return JSON.parse(objectMatch[0]);
+    }
+
+    throw new Error('No valid JSON analysis found in output');
+  }
+}
