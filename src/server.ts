@@ -74,13 +74,34 @@ export async function createServer(
     // Try to enrich with NerdGraph data
     if (newrelic) {
       try {
-        const transactionName = payload.error?.transaction?.[0];
-        const entityGuid = payload.entity?.guid?.[0];
-        const appName = payload.impactedEntities?.[0]; // e.g., "kobana-production"
-
+        const issueId = payload.id;
         let found = false;
 
-        // 1. Try by transaction name (7 days window)
+        // 1. Try by issue ID (preferred - gets exact issue details)
+        if (issueId && !found) {
+          app.log.info(`Fetching issue details for ID: ${issueId}`);
+          const issue = await newrelic.getIssueById(issueId);
+
+          if (issue && issue.entityGuids.length > 0) {
+            // Use entity GUID from issue to get error details
+            const entityGuid = issue.entityGuids[0];
+            const errors = await newrelic.getErrorsByEntityGuid(entityGuid, '7 days ago');
+
+            if (errors.length > 0) {
+              enrichedPayload.enriched = {
+                issue,
+                errorDetails: errors[0],
+                recentErrors: errors,
+                queryType: 'issueId',
+              };
+              app.log.info(`Enriched with issue ${issueId} and ${errors.length} errors`);
+              found = true;
+            }
+          }
+        }
+
+        // 2. Fallback: try by transaction name
+        const transactionName = payload.error?.transaction?.[0];
         if (transactionName && !found) {
           const errorDetails = await newrelic.getErrorDetails(transactionName, '7 days ago');
           if (errorDetails) {
@@ -93,7 +114,8 @@ export async function createServer(
           }
         }
 
-        // 2. Fallback: try by entity GUID
+        // 3. Fallback: try by entity GUID from payload
+        const entityGuid = payload.entity?.guid?.[0];
         if (entityGuid && !found) {
           const errors = await newrelic.getErrorsByEntityGuid(entityGuid, '7 days ago');
           if (errors.length > 0) {
@@ -107,7 +129,8 @@ export async function createServer(
           }
         }
 
-        // 3. Fallback: get recent errors from the app
+        // 4. Fallback: get recent errors from the app
+        const appName = payload.impactedEntities?.[0];
         if (appName && !found) {
           const errors = await newrelic.getRecentErrors(appName, '1 day ago', 3);
           if (errors.length > 0) {
@@ -115,7 +138,7 @@ export async function createServer(
               errorDetails: errors[0],
               recentErrors: errors,
               queryType: 'appName',
-              note: `No errors found for specific transaction, showing recent errors from ${appName}`,
+              note: `No errors found for specific issue, showing recent errors from ${appName}`,
             };
             app.log.info(`Enriched with ${errors.length} recent errors from app: ${appName}`);
             found = true;
@@ -126,8 +149,9 @@ export async function createServer(
           app.log.info('No error details found in New Relic');
         }
       } catch (err) {
-        app.log.warn(`Failed to enrich New Relic payload: ${err}`);
-        // Continue without enrichment
+        app.log.error(`Failed to query NerdGraph API: ${err}`);
+        enrichedPayload.nerdGraphFailed = true;
+        enrichedPayload.nerdGraphError = err instanceof Error ? err.message : String(err);
       }
     } else {
       app.log.warn('New Relic API not configured - proceeding without enrichment');

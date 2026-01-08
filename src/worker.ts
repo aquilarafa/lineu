@@ -67,6 +67,14 @@ async function processJob(
   const payload = JSON.parse(job.payload) as Record<string, unknown>;
 
   try {
+    // 0. Check if NerdGraph query failed (for newrelic webhooks)
+    if (payload.nerdGraphFailed) {
+      const errorMsg = payload.nerdGraphError || 'NerdGraph query failed';
+      console.log(`[Job ${job.id}] Skipping - NerdGraph query failed: ${errorMsg}`);
+      db.markFailed(job.id, `NerdGraph query failed: ${errorMsg}`);
+      return;
+    }
+
     // 1. Check for duplicate
     const existing = db.findFingerprint(job.fingerprint, config.deduplication.windowDays);
 

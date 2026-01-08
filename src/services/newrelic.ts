@@ -16,10 +16,29 @@ interface NerdGraphResponse {
         nrql?: {
           results?: Record<string, unknown>[];
         };
+        aiIssues?: {
+          issues?: {
+            issues?: AiIssue[];
+          };
+        };
       };
     };
   };
   errors?: { message: string }[];
+}
+
+interface AiIssue {
+  issueId: string;
+  title: string;
+  priority: string;
+  state: string;
+  entityGuids: string[];
+  entityNames: string[];
+  incidentIds: string[];
+  createdAt: number;
+  activatedAt: number;
+  closedAt: number;
+  sources: string[];
 }
 
 interface ErrorDetails {
@@ -40,6 +59,43 @@ export class NewRelicService {
   constructor(config: { apiKey: string; accountId: string }) {
     this.apiKey = config.apiKey;
     this.accountId = config.accountId;
+  }
+
+  async getIssueById(issueId: string): Promise<AiIssue | null> {
+    const query = `
+      {
+        actor {
+          account(id: ${this.accountId}) {
+            aiIssues {
+              issues(filter: {ids: ["${issueId}"]}) {
+                issues {
+                  issueId
+                  title
+                  priority
+                  state
+                  entityGuids
+                  entityNames
+                  incidentIds
+                  createdAt
+                  activatedAt
+                  closedAt
+                  sources
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const response = await this.queryWithExperimental(query);
+    const issues = response.data?.actor?.account?.aiIssues?.issues?.issues;
+
+    if (!issues || issues.length === 0) {
+      return null;
+    }
+
+    return issues[0];
   }
 
   async getErrorDetails(transactionName: string, since = '1 hour ago'): Promise<ErrorDetails | null> {
@@ -144,6 +200,30 @@ export class NewRelicService {
       headers: {
         'Content-Type': 'application/json',
         'API-Key': this.apiKey,
+      },
+      body: JSON.stringify({ query }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`NerdGraph API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json() as NerdGraphResponse;
+
+    if (data.errors && data.errors.length > 0) {
+      throw new Error(`NerdGraph query error: ${data.errors.map(e => e.message).join(', ')}`);
+    }
+
+    return data;
+  }
+
+  private async queryWithExperimental(query: string): Promise<NerdGraphResponse> {
+    const response = await fetch(this.endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'API-Key': this.apiKey,
+        'nerd-graph-unsafe-experimental-opt-in': 'AiIssues',
       },
       body: JSON.stringify({ query }),
     });
