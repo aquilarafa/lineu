@@ -28,45 +28,6 @@ interface NewRelicWebhookPayload {
   [key: string]: unknown;
 }
 
-// Common Ruby/Rails error class patterns
-const ERROR_CLASS_PATTERNS = [
-  /\b([A-Z][a-zA-Z]*(?:Error|Exception|Failure))\b/,  // StandardError, ActiveRecord::RecordInvalid
-  /\b(ActiveRecord::[A-Z][a-zA-Z]+)\b/,                // ActiveRecord::* errors
-  /\b(ActionController::[A-Z][a-zA-Z]+)\b/,            // ActionController::* errors
-  /\b(Net::[A-Z][a-zA-Z]+)\b/,                         // Net::* errors
-  /\b(OpenSSL::[A-Z][a-zA-Z:]+)\b/,                    // OpenSSL::* errors
-  /\b(Timeout::[A-Z][a-zA-Z]+)\b/,                     // Timeout::Error
-];
-
-function extractErrorClass(payload: NewRelicWebhookPayload): string | undefined {
-  // 1. Check alert condition names first (most specific)
-  const conditions = payload.alertConditionNames || [];
-  for (const condition of conditions) {
-    for (const pattern of ERROR_CLASS_PATTERNS) {
-      const match = condition.match(pattern);
-      if (match) return match[1];
-    }
-  }
-
-  // 2. Check title
-  const title = payload.title || '';
-  for (const pattern of ERROR_CLASS_PATTERNS) {
-    const match = title.match(pattern);
-    if (match) return match[1];
-  }
-
-  // 3. Check alert policy names
-  const policies = payload.alertPolicyNames || [];
-  for (const policy of policies) {
-    for (const pattern of ERROR_CLASS_PATTERNS) {
-      const match = policy.match(pattern);
-      if (match) return match[1];
-    }
-  }
-
-  return undefined;
-}
-
 export async function createServer(
   config: LineuConfig,
   db: LineuDatabase
@@ -117,12 +78,6 @@ export async function createServer(
         const issueId = payload.id;
         let found = false;
 
-        // Extract error class from alert title/conditions for filtering
-        const errorClass = extractErrorClass(payload);
-        if (errorClass) {
-          app.log.info(`Extracted error class filter: ${errorClass}`);
-        }
-
         // 1. Try by issue ID (preferred - gets exact issue details)
         if (issueId && !found) {
           app.log.info(`Fetching issue details for ID: ${issueId}`);
@@ -131,7 +86,7 @@ export async function createServer(
           if (issue && issue.entityGuids.length > 0) {
             // Use entity GUID from issue to get error details
             const entityGuid = issue.entityGuids[0];
-            const errors = await newrelic.getErrorsByEntityGuid(entityGuid, '7 days ago', errorClass);
+            const errors = await newrelic.getErrorsByEntityGuid(entityGuid, '7 days ago');
 
             if (errors.length > 0) {
               enrichedPayload.enriched = {
@@ -163,7 +118,7 @@ export async function createServer(
         // 3. Fallback: try by entity GUID from payload
         const entityGuid = payload.entity?.guid?.[0];
         if (entityGuid && !found) {
-          const errors = await newrelic.getErrorsByEntityGuid(entityGuid, '7 days ago', errorClass);
+          const errors = await newrelic.getErrorsByEntityGuid(entityGuid, '7 days ago');
           if (errors.length > 0) {
             enrichedPayload.enriched = {
               errorDetails: errors[0],
@@ -178,15 +133,13 @@ export async function createServer(
         // 4. Fallback: get recent errors from the app
         const appName = payload.impactedEntities?.[0];
         if (appName && !found) {
-          const errors = await newrelic.getRecentErrors(appName, '1 day ago', 3, errorClass);
+          const errors = await newrelic.getRecentErrors(appName, '1 day ago', 3);
           if (errors.length > 0) {
             enrichedPayload.enriched = {
               errorDetails: errors[0],
               recentErrors: errors,
               queryType: 'appName',
-              note: errorClass
-                ? `Filtered by error class: ${errorClass}`
-                : `No errors found for specific issue, showing recent errors from ${appName}`,
+              note: `No errors found for specific issue, showing recent errors from ${appName}`,
             };
             app.log.info(`Enriched with ${errors.length} recent errors from app: ${appName}`);
             found = true;
