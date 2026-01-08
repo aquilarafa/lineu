@@ -37,7 +37,7 @@ export function loadConfig(overrides: ConfigOverrides = {}): LineuConfig {
       path: process.env.LINEU_DB_PATH || './lineu.db',
     },
     claude: {
-      maxTurns: parseInt(process.env.LINEU_CLAUDE_MAX_TURNS || '3', 10),
+      maxTurns: parseInt(process.env.LINEU_CLAUDE_MAX_TURNS || '10', 10),
       timeout: parseInt(process.env.LINEU_CLAUDE_TIMEOUT || '120000', 10),
     },
     linear: {

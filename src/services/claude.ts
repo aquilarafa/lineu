@@ -197,46 +197,94 @@ ${teamList}
 
 Para escolher o time:
 1. Se encontrar CODEOWNERS, use o owner dos arquivos afetados
-2. Se não, escolha baseado no contexto do erro
-3. Se incerto, retorne null (mas tente escolher!)
+2. Se não, escolha baseado no contexto técnico do erro (domínio, módulo, serviço)
+3. Se ainda incerto, retorne null
 ` : '';
 
-    return `Você é um analisador de erros de produção. Analise rapidamente e responda APENAS com JSON.
+    return `# Você é um Engenheiro de Software Sênior especializado em investigação de bugs de produção
 
-## Payload do Erro
+Sua missão é analisar este erro e propor uma solução. Seja EFICIENTE - você tem limite de ações.
+
+## LIMITE CRÍTICO: Máximo 6 buscas (grep/glob/read), depois DEVE responder com JSON
+
+## Contexto do Erro
 
 \`\`\`json
 ${JSON.stringify(payload, null, 2)}
 \`\`\`
 ${teamSection}
-## Instruções IMPORTANTES
+## Estratégia de Investigação (RÁPIDA)
 
-IMPORTANTE: Você tem no MÁXIMO 5 buscas para investigar. Após isso, DEVE responder com JSON.
+1. **Busca 1-2**: Localize o Job/Service mencionado no erro (grep pelo nome da classe)
+2. **Busca 3-4**: Leia os arquivos principais encontrados
+3. **Busca 5-6**: Procure a validação/erro específico se necessário
+4. **PARE E RESPONDA**: Formule hipótese com base no que encontrou
 
-1. Faça 1-2 buscas rápidas (grep/glob) para localizar arquivos relevantes
-2. Se existir CODEOWNERS, leia para entender ownership
-3. Leia no máximo 2-3 arquivos chave
-4. IMEDIATAMENTE responda com o JSON abaixo
+NÃO continue buscando indefinidamente. Com 6 buscas você tem informação suficiente.
 
-NÃO continue investigando indefinidamente. Faça uma hipótese rápida baseada no que encontrou.
+## Critérios de Prioridade
 
-## Resposta OBRIGATÓRIA (JSON)
+- **critical**: Sistema fora do ar, perda de dados, segurança comprometida
+- **high**: Funcionalidade core quebrada, muitos usuários afetados
+- **medium**: Bug afeta fluxo secundário, workaround disponível
+- **low**: Cosmético, edge case raro
+
+## Resposta Obrigatória
+
+Após suas buscas (máximo 6), responda IMEDIATAMENTE com este JSON:
 
 \`\`\`json
 {
-  "category": "bug|infrastructure|database|external-service|configuration|performance",
+  "category": "bug|infrastructure|database|external-service|configuration|performance|security",
   "priority": "critical|high|medium|low",
-  "summary": "Descrição curta (max 80 chars)",
-  "affected_files": ["caminho/arquivo.rb"],
-  "root_cause_hypothesis": "Causa provável baseada na investigação",
-  "suggested_fix": "Como resolver",
-  "investigation_steps": ["Passo 1", "Passo 2"],
-  "related_code": "Snippet relevante encontrado",
-  "suggested_team": "TEAM_KEY ou null se incerto"
+  "summary": "Título conciso do problema (max 80 chars)",
+  "exception": {
+    "type": "Nome da exception (ex: TypeError, NoMethodError)",
+    "message": "Mensagem de erro principal"
+  },
+  "stack_trace_summary": "Resumo das 3-5 linhas mais relevantes do stack trace",
+  "affected_files": ["caminho/arquivo.rb:linha"],
+  "root_cause": {
+    "hypothesis": "Explicação técnica detalhada da causa raiz",
+    "confidence": "high|medium|low",
+    "evidence": "O que você encontrou no código que suporta esta hipótese"
+  },
+  "impact": {
+    "description": "Impacto para o usuário/cliente/negócio",
+    "scope": "Estimativa de quantos usuários/operações são afetados"
+  },
+  "fix": {
+    "suggestion": "Descrição clara da correção proposta",
+    "code_example": "Snippet de código mostrando a correção (se aplicável)",
+    "files_to_modify": ["arquivo1.rb", "arquivo2.rb"]
+  },
+  "prevention": {
+    "test_suggestion": "Que teste adicionar para evitar regressão",
+    "monitoring_suggestion": "Que alerta/métrica adicionar (se aplicável)"
+  },
+  "investigation_log": ["Passo 1: O que você fez", "Passo 2: O que descobriu"],
+  "related_code_snippets": [
+    {
+      "file": "caminho/arquivo.rb",
+      "lines": "10-25",
+      "code": "código relevante encontrado",
+      "relevance": "Por que este código é relevante"
+    }
+  ],
+  "suggested_team": "TEAM_KEY ou null",
+  "additional_context": "Qualquer informação adicional relevante (Jobs Sidekiq, serviços externos, etc.)"
 }
 \`\`\`
 
-RESPONDA APENAS COM O JSON ACIMA. Nenhum texto adicional.`;
+## Regras OBRIGATÓRIAS
+
+1. **MÁXIMO 6 buscas**: Após 6 operações de busca/leitura, você DEVE parar e responder
+2. **Seja específico**: Aponte arquivos, linhas, variáveis concretas
+3. **Proponha soluções reais**: Correção implementável, não "investigar mais"
+4. **FORMATO CRÍTICO**:
+   - Responda APENAS com o bloco JSON
+   - Comece com \`\`\`json e termine com \`\`\`
+   - ZERO texto antes ou depois do JSON`;
   }
 
   private parseStreamOutput(fullOutput: string, lastResult: unknown): ClaudeAnalysis {
@@ -262,18 +310,71 @@ RESPONDA APENAS COM O JSON ACIMA. Nenhum texto adicional.`;
   }
 
   private extractJsonFromText(text: string): ClaudeAnalysis {
-    // Try to find JSON block in markdown
-    const jsonMatch = text.match(/```json\n?([\s\S]*?)\n?```/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[1]);
+    // Try to find JSON block in markdown - use greedy match to get the LAST complete block
+    const jsonBlockMatches = text.matchAll(/```json\s*([\s\S]*?)```/g);
+    for (const match of jsonBlockMatches) {
+      try {
+        const parsed = JSON.parse(match[1].trim());
+        if (parsed.category && parsed.summary) {
+          return parsed;
+        }
+      } catch {
+        // Continue to next match
+      }
     }
 
-    // Try to find raw JSON object
-    const objectMatch = text.match(/\{[\s\S]*"category"[\s\S]*"summary"[\s\S]*\}/);
-    if (objectMatch) {
-      return JSON.parse(objectMatch[0]);
+    // Try to find balanced JSON object starting with { and containing required fields
+    // Look for the pattern anywhere in the text
+    const patterns = ['{\n  "category"', '{"category"', '{ "category"'];
+    for (const pattern of patterns) {
+      const startIdx = text.indexOf(pattern);
+      if (startIdx !== -1) {
+        try {
+          return this.extractBalancedJson(text, startIdx);
+        } catch {
+          // Continue to next pattern
+        }
+      }
     }
 
     throw new Error('No valid JSON analysis found in output');
+  }
+
+  private extractBalancedJson(text: string, startIdx: number): ClaudeAnalysis {
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+
+    for (let i = startIdx; i < text.length; i++) {
+      const char = text[i];
+
+      if (escape) {
+        escape = false;
+        continue;
+      }
+
+      if (char === '\\' && inString) {
+        escape = true;
+        continue;
+      }
+
+      if (char === '"' && !escape) {
+        inString = !inString;
+        continue;
+      }
+
+      if (!inString) {
+        if (char === '{') depth++;
+        if (char === '}') {
+          depth--;
+          if (depth === 0) {
+            const jsonStr = text.slice(startIdx, i + 1);
+            return JSON.parse(jsonStr);
+          }
+        }
+      }
+    }
+
+    throw new Error('Unbalanced JSON in output');
   }
 }

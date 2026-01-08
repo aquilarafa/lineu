@@ -83,15 +83,47 @@ export interface TimelineEntry {
 }
 
 export interface ClaudeAnalysis {
-  category: 'bug' | 'infrastructure' | 'database' | 'external-service' | 'configuration' | 'performance';
+  category: 'bug' | 'infrastructure' | 'database' | 'external-service' | 'configuration' | 'performance' | 'security';
   priority: 'critical' | 'high' | 'medium' | 'low';
   summary: string;
+  exception?: {
+    type: string;
+    message: string;
+  };
+  stack_trace_summary?: string;
   affected_files: string[];
-  root_cause_hypothesis: string;
-  suggested_fix: string;
-  investigation_steps: string[];
-  related_code?: string;
+  root_cause: {
+    hypothesis: string;
+    confidence: 'high' | 'medium' | 'low';
+    evidence: string;
+  };
+  impact?: {
+    description: string;
+    scope: string;
+  };
+  fix: {
+    suggestion: string;
+    code_example?: string;
+    files_to_modify: string[];
+  };
+  prevention?: {
+    test_suggestion: string;
+    monitoring_suggestion?: string;
+  };
+  investigation_log: string[];
+  related_code_snippets?: Array<{
+    file: string;
+    lines: string;
+    code: string;
+    relevance: string;
+  }>;
   suggested_team: string | null;
+  additional_context?: string;
+  // Legacy fields for backwards compatibility
+  root_cause_hypothesis?: string;
+  suggested_fix?: string;
+  investigation_steps?: string[];
+  related_code?: string;
 }
 
 export interface LinearIssue {
