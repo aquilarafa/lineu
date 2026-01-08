@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Job - Lineu</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; max-width: 1200px; margin: 0 auto; padding: 1rem; background: #f5f5f5; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .status { padding: 0.25rem 0.75rem; border-radius: 4px; font-weight: 600; color: white; }
+    .status.pending { background: #f59e0b; }
+    .status.processing { background: #3b82f6; }
+    .status.completed { background: #10b981; }
+    .status.failed { background: #ef4444; }
+    .status.duplicate { background: #6b7280; }
+    .section { background: white; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .section h2 { margin-top: 0; font-size: 1rem; color: #374151; }
+    pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 6px; overflow: auto; max-height: 400px; font-family: 'SF Mono', Monaco, monospace; font-size: 13px; line-height: 1.5; margin: 0; }
+    .meta { color: #6b7280; font-size: 0.875rem; }
+    .linear-link { background: #5e6ad2; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; text-decoration: none; font-size: 0.875rem; }
+    .error-banner { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 1rem; border-radius: 6px; margin-bottom: 1rem; }
+    .back-link { color: #3b82f6; text-decoration: none; font-size: 0.875rem; }
+    .back-link:hover { text-decoration: underline; }
+
+    /* Session Timeline */
+    .session { display: flex; flex-direction: column; gap: 0.5rem; }
+    .event { padding: 0.5rem 0.75rem; border-radius: 4px; border-left: 3px solid #444; background: #fafafa; }
+    .event .time { color: #888; font-size: 0.75rem; font-family: monospace; }
+    .event.text { border-left-color: #3b82f6; }
+    .event.tool_use { border-left-color: #f59e0b; }
+    .event.tool_result { border-left-color: #10b981; }
+    .event.error { border-left-color: #ef4444; background: #fef2f2; }
+    .event.result { border-left-color: #10b981; background: #f0fdf4; }
+    .event .tool { font-weight: 600; color: #f59e0b; }
+    .event .tool-input { font-family: monospace; font-size: 0.85rem; color: #666; }
+    .event .result-output { font-family: monospace; font-size: 0.8rem; color: #555; max-height: 100px; overflow: auto; background: #f0f0f0; padding: 0.5rem; border-radius: 4px; margin-top: 0.25rem; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <a href="/dashboard/" class="back-link">&larr; Voltar ao Dashboard</a>
+
+  <div class="header">
+    <div>
+      <h1 style="margin:0">Job #<span id="job-id">-</span></h1>
+      <p class="meta" id="job-meta"></p>
+    </div>
+    <div>
+      <span id="job-status" class="status">-</span>
+      <a id="linear-link" class="linear-link" style="display:none" target="_blank"></a>
+    </div>
+  </div>
+
+  <div id="error-banner" class="error-banner" style="display:none"></div>
+
+  <!-- Claude Session (structured) -->
+  <div id="session-section" class="section" style="display:none">
+    <h2>Claude Session <span id="session-stats" class="meta"></span></h2>
+    <div id="session" class="session"></div>
+  </div>
+
+  <!-- Payload -->
+  <div class="section">
+    <h2>Payload</h2>
+    <pre id="payload"></pre>
+  </div>
+
+  <!-- Analysis -->
+  <div id="analysis-section" class="section" style="display:none">
+    <h2>Analysis</h2>
+    <pre id="analysis"></pre>
+  </div>
+
+  <script>
+    const jobId = new URLSearchParams(window.location.search).get('id');
+    document.getElementById('job-id').textContent = jobId;
+
+    function formatTime(ts) {
+      return new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function renderSession(events) {
+      if (!events || events.length === 0) return;
+
+      const container = document.getElementById('session');
+      const toolCount = events.filter(e => e.type === 'tool_use').length;
+      const resultEvent = events.find(e => e.type === 'result');
+      const duration = resultEvent?.duration_ms ? (resultEvent.duration_ms / 1000).toFixed(1) + 's' : '';
+
+      document.getElementById('session-stats').textContent = `(${toolCount} tools, ${duration})`;
+      document.getElementById('session-section').style.display = 'block';
+
+      for (const event of events) {
+        const div = document.createElement('div');
+        div.className = `event ${event.type}`;
+
+        const time = `<span class="time">${formatTime(event.ts)}</span>`;
+
+        switch (event.type) {
+          case 'text':
+            div.innerHTML = `${time} ${escapeHtml(event.content || '')}`;
+            break;
+          case 'tool_use':
+            const input = Object.entries(event.input || {}).map(([k,v]) => `${k}=${JSON.stringify(v)}`).join(' ');
+            div.innerHTML = `${time} <span class="tool">🔧 ${escapeHtml(event.tool || '')}</span> <span class="tool-input">${escapeHtml(input)}</span>`;
+            break;
+          case 'tool_result':
+            div.innerHTML = `${time} ✓ ${escapeHtml(event.tool || '')} (${event.lines} lines)
+              <div class="result-output">${escapeHtml(event.output || '')}</div>`;
+            break;
+          case 'result':
+            div.innerHTML = `${time} ✅ Analysis complete in ${(event.duration_ms/1000).toFixed(1)}s`;
+            break;
+          case 'error':
+            div.innerHTML = `${time} ❌ ${escapeHtml(event.message || '')}`;
+            break;
+        }
+        container.appendChild(div);
+      }
+    }
+
+    async function loadJob() {
+      try {
+        const res = await fetch(`/api/dashboard/jobs/${jobId}`);
+        if (!res.ok) throw new Error('Job not found');
+
+        const job = await res.json();
+
+        // Status
+        const statusEl = document.getElementById('job-status');
+        statusEl.textContent = job.status;
+        statusEl.className = `status ${job.status}`;
+
+        // Meta
+        const created = new Date(job.created_at).toLocaleString('pt-BR');
+        const duration = job.processed_at
+          ? ((new Date(job.processed_at) - new Date(job.created_at)) / 1000).toFixed(1) + 's'
+          : 'in progress';
+        document.getElementById('job-meta').textContent = `Created: ${created} | Duration: ${duration}`;
+
+        // Linear link
+        if (job.linear_identifier) {
+          const link = document.getElementById('linear-link');
+          link.textContent = job.linear_identifier;
+          link.href = `https://linear.app/issue/${job.linear_identifier}`;
+          link.style.display = 'inline-block';
+        }
+
+        // Error
+        if (job.error) {
+          document.getElementById('error-banner').textContent = job.error;
+          document.getElementById('error-banner').style.display = 'block';
+        }
+
+        // Session
+        renderSession(job.session);
+
+        // Payload
+        try {
+          const payload = JSON.parse(job.payload);
+          document.getElementById('payload').textContent = JSON.stringify(payload, null, 2);
+        } catch {
+          document.getElementById('payload').textContent = job.payload;
+        }
+
+        // Analysis
+        if (job.analysis) {
+          document.getElementById('analysis-section').style.display = 'block';
+          document.getElementById('analysis').textContent = JSON.stringify(job.analysis, null, 2);
+        }
+
+        // Polling while processing
+        if (job.status === 'processing') {
+          setTimeout(loadJob, 2000);
+        }
+      } catch (err) {
+        document.getElementById('payload').textContent = 'Error: ' + err.message;
+      }
+    }
+
+    loadJob();
+  </script>
+</body>
+</html>

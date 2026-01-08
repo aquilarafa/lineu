@@ -29,16 +29,33 @@ export interface LineuConfig {
   };
 }
 
+export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'duplicate';
+
 export interface Job {
   id: number;
   payload: string;
   fingerprint: string;
-  status: string;
+  status: JobStatus;
   error?: string;
+  analysis?: string;
   linear_issue_id?: string;
   linear_identifier?: string;
   created_at?: string;
   processed_at?: string;
+}
+
+export type ClaudeEventType = 'text' | 'tool_use' | 'tool_result' | 'result' | 'error';
+
+export interface ClaudeSessionEvent {
+  ts: string;
+  type: ClaudeEventType;
+  content?: string;
+  tool?: string;
+  input?: Record<string, unknown>;
+  output?: string;
+  lines?: number;
+  duration_ms?: number;
+  message?: string;
 }
 
 export interface ClaimedJob {

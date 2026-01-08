@@ -103,7 +103,7 @@ async function processJob(
 
     // 6. Save fingerprint and mark complete
     db.insertFingerprint(job.fingerprint, issue.id, issue.identifier);
-    db.markCompleted(job.id, issue.id, issue.identifier);
+    db.markCompleted(job.id, issue.id, issue.identifier, JSON.stringify(analysis));
     console.log(`[Job ${job.id}] Completed → ${issue.identifier}`);
 
   } catch (err) {

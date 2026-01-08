@@ -60,6 +60,7 @@
         <th>Duration</th>
         <th>Linear</th>
         <th>Created</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody id="jobs"></tbody>
@@ -100,6 +101,7 @@
             ? `<a href="https://linear.app/issue/${job.linear_identifier}" target="_blank">${job.linear_identifier}</a>`
             : '-'}</td>
           <td>${timeAgo(job.created_at)}</td>
+          <td><a href="/dashboard/job.html?id=${job.id}">View</a></td>
         </tr>
       `).join('');
 

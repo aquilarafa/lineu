@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   fingerprint TEXT NOT NULL,
   status TEXT DEFAULT 'pending',  -- pending | processing | completed | failed | duplicate
   error TEXT,
+  analysis TEXT,
   linear_issue_id TEXT,
   linear_identifier TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -34,7 +35,7 @@ export interface LineuDatabase {
   getPendingJobs: (limit: number) => Job[];
   claimNextJob: () => ClaimedJob | undefined;
   markProcessing: (id: number) => void;
-  markCompleted: (id: number, linearIssueId: string, linearIdentifier: string) => void;
+  markCompleted: (id: number, linearIssueId: string, linearIdentifier: string, analysis: string) => void;
   markFailed: (id: number, error: string) => void;
   markDuplicate: (id: number, linearIdentifier: string) => void;
 
@@ -57,12 +58,18 @@ export function createDatabase(dbPath: string): LineuDatabase {
   db.pragma('journal_mode = WAL');
   db.exec(SCHEMA);
 
+  // Migration: add analysis column if missing (for existing databases)
+  const columns = db.prepare(`PRAGMA table_info(jobs)`).all() as { name: string }[];
+  if (!columns.some(c => c.name === 'analysis')) {
+    db.exec(`ALTER TABLE jobs ADD COLUMN analysis TEXT`);
+  }
+
   const insertJobStmt = db.prepare(`
     INSERT INTO jobs (payload, fingerprint) VALUES (?, ?)
   `);
 
   const getJobStmt = db.prepare(`
-    SELECT id, payload, fingerprint, status, error, linear_issue_id, linear_identifier, created_at, processed_at
+    SELECT id, payload, fingerprint, status, error, analysis, linear_issue_id, linear_identifier, created_at, processed_at
     FROM jobs WHERE id = ?
   `);
 
@@ -90,7 +97,7 @@ export function createDatabase(dbPath: string): LineuDatabase {
   `);
 
   const markCompletedStmt = db.prepare(`
-    UPDATE jobs SET status = 'completed', linear_issue_id = ?, linear_identifier = ?, processed_at = CURRENT_TIMESTAMP WHERE id = ?
+    UPDATE jobs SET status = 'completed', linear_issue_id = ?, linear_identifier = ?, analysis = ?, processed_at = CURRENT_TIMESTAMP WHERE id = ?
   `);
 
   const markFailedStmt = db.prepare(`
@@ -166,8 +173,8 @@ export function createDatabase(dbPath: string): LineuDatabase {
 
     markProcessing: (id) => markProcessingStmt.run(id),
 
-    markCompleted: (id, linearIssueId, linearIdentifier) =>
-      markCompletedStmt.run(linearIssueId, linearIdentifier, id),
+    markCompleted: (id, linearIssueId, linearIdentifier, analysis) =>
+      markCompletedStmt.run(linearIssueId, linearIdentifier, analysis, id),
 
     markFailed: (id, error) => markFailedStmt.run(error, id),
 

@@ -2,7 +2,7 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import type { ClaudeAnalysis } from '../types.js';
+import type { ClaudeAnalysis, ClaudeSessionEvent } from '../types.js';
 
 // Prompt injection detection patterns (defense-in-depth)
 const INJECTION_PATTERNS = [
@@ -55,7 +55,14 @@ export class ClaudeService {
 
     const prompt = this.buildPrompt(payload, teamList);
     const logFile = path.join(this.logDir, `claude-${jobId || Date.now()}.log`);
+    const sessionLogPath = path.join(this.logDir, `claude-${jobId || Date.now()}.jsonl`);
     const logStream = fs.createWriteStream(logFile, { flags: 'a' });
+    const sessionLog = fs.createWriteStream(sessionLogPath, { flags: 'w' });
+    const startTime = Date.now();
+
+    const logEvent = (event: ClaudeSessionEvent) => {
+      sessionLog.write(JSON.stringify(event) + '\n');
+    };
 
     console.log(`[Claude] Starting analysis, log: ${logFile}`);
     logStream.write(`=== Claude Analysis Started at ${new Date().toISOString()} ===\n`);
@@ -76,14 +83,17 @@ export class ClaudeService {
 
       // Manual timeout
       const timeoutId = this.timeout > 0 ? setTimeout(() => {
+        logEvent({ ts: new Date().toISOString(), type: 'error', message: `Timeout after ${this.timeout}ms` });
         logStream.write(`\n=== TIMEOUT after ${this.timeout}ms ===\n`);
         logStream.end();
+        sessionLog.end();
         proc.kill('SIGTERM');
         reject(new ClaudeExecutionError(`Claude timed out after ${this.timeout}ms`));
       }, this.timeout) : null;
 
       let fullOutput = '';
       let lastResult: unknown = null;
+      const toolMap = new Map<string, string>(); // tool_use_id -> tool name
 
       proc.stdout.on('data', (data) => {
         const chunk = data.toString();
@@ -95,12 +105,47 @@ export class ClaudeService {
         // Also print to console for real-time visibility
         process.stdout.write(chunk);
 
-        // Try to parse stream-json events
+        // Try to parse stream-json events and log structured events
         const lines = chunk.split('\n').filter((l: string) => l.trim());
         for (const line of lines) {
           try {
             const event = JSON.parse(line);
-            if (event.type === 'result') {
+            const ts = new Date().toISOString();
+
+            if (event.type === 'assistant') {
+              const content = event.message?.content;
+              if (Array.isArray(content)) {
+                for (const block of content) {
+                  if (block.type === 'text') {
+                    logEvent({ ts, type: 'text', content: block.text });
+                  } else if (block.type === 'tool_use') {
+                    // Track tool_use_id -> tool name for matching results
+                    if (block.id) {
+                      toolMap.set(block.id, block.name);
+                    }
+                    logEvent({ ts, type: 'tool_use', tool: block.name, input: block.input });
+                  }
+                }
+              }
+            } else if (event.type === 'user') {
+              const content = event.message?.content;
+              if (Array.isArray(content)) {
+                for (const block of content) {
+                  if (block.type === 'tool_result') {
+                    const output = typeof block.content === 'string' ? block.content : JSON.stringify(block.content);
+                    // Look up tool name from tool_use_id
+                    const toolName = block.tool_use_id ? toolMap.get(block.tool_use_id) : undefined;
+                    logEvent({
+                      ts,
+                      type: 'tool_result',
+                      tool: toolName,
+                      output: output.substring(0, 1000),
+                      lines: output.split('\n').length,
+                    });
+                  }
+                }
+              }
+            } else if (event.type === 'result') {
               lastResult = event;
             }
           } catch {
@@ -116,16 +161,20 @@ export class ClaudeService {
       });
 
       proc.on('error', (err) => {
+        logEvent({ ts: new Date().toISOString(), type: 'error', message: err.message });
         logStream.write(`\n=== ERROR: ${err.message} ===\n`);
         logStream.end();
+        sessionLog.end();
         reject(new ClaudeExecutionError(`Failed to spawn claude: ${err.message}`));
       });
 
       proc.on('close', (code) => {
         if (timeoutId) clearTimeout(timeoutId);
 
+        logEvent({ ts: new Date().toISOString(), type: 'result', duration_ms: Date.now() - startTime });
         logStream.write(`\n=== Claude exited with code ${code} ===\n`);
         logStream.end();
+        sessionLog.end();
 
         if (code !== 0) {
           reject(new ClaudeExecutionError(`Claude exited with code ${code}`, fullOutput));
