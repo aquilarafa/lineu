@@ -42,6 +42,12 @@ export interface Job {
   processed_at?: string;
 }
 
+export interface ClaimedJob {
+  id: number;
+  payload: string;
+  fingerprint: string;
+}
+
 export interface ClaudeAnalysis {
   category: 'bug' | 'infrastructure' | 'database' | 'external-service' | 'configuration' | 'performance';
   priority: 'critical' | 'high' | 'medium' | 'low';

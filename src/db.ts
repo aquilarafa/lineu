@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import type { Job } from './types.js';
+import type { Job, ClaimedJob } from './types.js';
 
 const SCHEMA = `
 -- Job queue for async processing
@@ -32,6 +32,7 @@ export interface LineuDatabase {
   insertJob: (payload: Record<string, unknown>, fingerprint: string) => number;
   getJob: (id: number) => Job | undefined;
   getPendingJobs: (limit: number) => Job[];
+  claimNextJob: () => ClaimedJob | undefined;
   markProcessing: (id: number) => void;
   markCompleted: (id: number, linearIssueId: string, linearIdentifier: string) => void;
   markFailed: (id: number, error: string) => void;
@@ -66,6 +67,18 @@ export function createDatabase(dbPath: string): LineuDatabase {
     WHERE status = 'pending'
     ORDER BY created_at ASC
     LIMIT ?
+  `);
+
+  const claimNextJobStmt = db.prepare(`
+    UPDATE jobs
+    SET status = 'processing'
+    WHERE id = (
+      SELECT id FROM jobs
+      WHERE status = 'pending'
+      ORDER BY created_at ASC
+      LIMIT 1
+    )
+    RETURNING id, payload, fingerprint
   `);
 
   const markProcessingStmt = db.prepare(`
@@ -113,6 +126,8 @@ export function createDatabase(dbPath: string): LineuDatabase {
     getJob: (id) => getJobStmt.get(id) as Job | undefined,
 
     getPendingJobs: (limit) => getPendingJobsStmt.all(limit) as Job[],
+
+    claimNextJob: () => claimNextJobStmt.get() as ClaimedJob | undefined,
 
     markProcessing: (id) => markProcessingStmt.run(id),
 
