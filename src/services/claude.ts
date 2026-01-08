@@ -37,8 +37,7 @@ export class ClaudeService {
     logStream.write(`Prompt:\n${prompt}\n\n`);
 
     return new Promise((resolve, reject) => {
-      const claudePath = process.env.CLAUDE_PATH || 'claude';
-      const proc = spawn(claudePath, [
+      const proc = spawn('claude', [
         '-p', prompt,
         '--output-format', 'stream-json',
         '--max-turns', String(this.maxTurns),
