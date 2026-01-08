@@ -4,6 +4,25 @@ import path from 'path';
 import os from 'os';
 import type { ClaudeAnalysis } from '../types.js';
 
+// Prompt injection detection patterns (defense-in-depth)
+const INJECTION_PATTERNS = [
+  /ignore\s+(all\s+)?previous\s+instructions/i,
+  /ignore\s+the\s+above/i,
+  /disregard\s+(all\s+)?prior/i,
+  /new\s+instructions?\s*:/i,
+  /system\s*:\s*you\s+are/i,
+  /run\s+(this\s+)?command/i,
+  /execute\s+(the\s+)?following/i,
+  /use\s+the\s+bash\s+tool/i,
+  /curl\s+.*\|\s*bash/i,
+  /wget\s+.*\|\s*sh/i,
+];
+
+function containsPromptInjection(payload: Record<string, unknown>): boolean {
+  const jsonStr = JSON.stringify(payload);
+  return INJECTION_PATTERNS.some(pattern => pattern.test(jsonStr));
+}
+
 export class ClaudeExecutionError extends Error {
   constructor(message: string, public readonly stderr?: string) {
     super(message);
@@ -28,6 +47,12 @@ export class ClaudeService {
   }
 
   async analyze(repoPath: string, payload: Record<string, unknown>, jobId?: number, teamList?: string): Promise<ClaudeAnalysis> {
+    // Defense-in-depth: Check for prompt injection attempts
+    if (containsPromptInjection(payload)) {
+      console.warn(`[Claude] Rejected payload: contains suspicious prompt injection patterns`);
+      throw new ClaudeExecutionError('Payload contains suspicious content');
+    }
+
     const prompt = this.buildPrompt(payload, teamList);
     const logFile = path.join(this.logDir, `claude-${jobId || Date.now()}.log`);
     const logStream = fs.createWriteStream(logFile, { flags: 'a' });
@@ -43,6 +68,7 @@ export class ClaudeService {
         '--output-format', 'stream-json',
         '--max-turns', String(this.maxTurns),
         '--verbose',
+        '--allowedTools', 'Read,Glob,Grep,LS',  // Restrict to read-only tools for security
       ], {
         cwd: repoPath,
         stdio: ['ignore', 'pipe', 'pipe'],

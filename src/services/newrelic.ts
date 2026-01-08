@@ -1,3 +1,14 @@
+// NRQL injection prevention - reject inputs with SQL/NRQL metacharacters
+const NRQL_FORBIDDEN = /['";]|--|\b(OR|AND|FACET|SELECT|FROM|WHERE|LIMIT|SINCE)\b/i;
+
+function sanitizeNrqlInput(input: string, fieldName: string): string {
+  if (NRQL_FORBIDDEN.test(input)) {
+    console.warn(`[NewRelic] Rejected ${fieldName}: contains forbidden NRQL characters`);
+    throw new Error(`Invalid ${fieldName}: contains forbidden characters`);
+  }
+  return input;
+}
+
 interface NerdGraphResponse {
   data?: {
     actor?: {
@@ -32,11 +43,14 @@ export class NewRelicService {
   }
 
   async getErrorDetails(transactionName: string, since = '1 hour ago'): Promise<ErrorDetails | null> {
+    const safeName = sanitizeNrqlInput(transactionName, 'transactionName');
+    const safeSince = sanitizeNrqlInput(since, 'since');
+
     const query = `
       {
         actor {
           account(id: ${this.accountId}) {
-            nrql(query: "SELECT * FROM TransactionError WHERE transactionName = '${transactionName}' SINCE ${since} LIMIT 1") {
+            nrql(query: "SELECT * FROM TransactionError WHERE transactionName = '${safeName}' SINCE ${safeSince} LIMIT 1") {
               results
             }
           }
@@ -64,11 +78,14 @@ export class NewRelicService {
   }
 
   async getErrorsByEntityGuid(entityGuid: string, since = '1 hour ago'): Promise<ErrorDetails[]> {
+    const safeGuid = sanitizeNrqlInput(entityGuid, 'entityGuid');
+    const safeSince = sanitizeNrqlInput(since, 'since');
+
     const query = `
       {
         actor {
           account(id: ${this.accountId}) {
-            nrql(query: "SELECT * FROM TransactionError WHERE entityGuid = '${entityGuid}' SINCE ${since} LIMIT 5") {
+            nrql(query: "SELECT * FROM TransactionError WHERE entityGuid = '${safeGuid}' SINCE ${safeSince} LIMIT 5") {
               results
             }
           }
@@ -91,11 +108,15 @@ export class NewRelicService {
   }
 
   async getRecentErrors(appName: string, since = '1 hour ago', limit = 5): Promise<ErrorDetails[]> {
+    const safeAppName = sanitizeNrqlInput(appName, 'appName');
+    const safeSince = sanitizeNrqlInput(since, 'since');
+    // limit is a number, no need for string sanitization
+
     const query = `
       {
         actor {
           account(id: ${this.accountId}) {
-            nrql(query: "SELECT * FROM TransactionError WHERE appName = '${appName}' SINCE ${since} LIMIT ${limit}") {
+            nrql(query: "SELECT * FROM TransactionError WHERE appName = '${safeAppName}' SINCE ${safeSince} LIMIT ${limit}") {
               results
             }
           }
