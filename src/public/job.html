@@ -36,6 +36,42 @@
     .back-link { color: var(--accent); text-decoration: none; font-size: 0.875rem; }
     .back-link:hover { text-decoration: underline; }
 
+    /* Tabs */
+    [role="tablist"] {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1rem;
+    }
+    [role="tab"] {
+      background: transparent;
+      border: none;
+      padding: 0.75rem 1.25rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      position: relative;
+      transition: color 0.15s;
+    }
+    [role="tab"]:hover { color: var(--text); }
+    [role="tab"][aria-selected="true"] { color: var(--accent); }
+    [role="tab"][aria-selected="true"]::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--accent);
+    }
+    [role="tab"]:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+    [role="tab"][hidden] { display: none; }
+    [role="tabpanel"][hidden] { display: none; }
+
     /* Session Timeline */
     .session { display: flex; flex-direction: column; gap: 0.5rem; }
     .event { padding: 0.5rem 0.75rem; border-radius: 4px; border-left: 3px solid var(--border); background: var(--bg-surface); }
@@ -67,27 +103,71 @@
 
   <div id="error-banner" class="error-banner" style="display:none"></div>
 
-  <!-- Claude Session (structured) -->
-  <div id="session-section" class="section" style="display:none">
-    <h2>Claude Session <span id="session-stats" class="meta"></span></h2>
-    <div id="session" class="session"></div>
+  <!-- Tabs -->
+  <div role="tablist" aria-label="Detalhes do Job">
+    <button role="tab" id="tab-payload" aria-selected="true" aria-controls="panel-payload" tabindex="0">Payload</button>
+    <button role="tab" id="tab-session" aria-selected="false" aria-controls="panel-session" tabindex="-1" hidden>Session</button>
+    <button role="tab" id="tab-analysis" aria-selected="false" aria-controls="panel-analysis" tabindex="-1" hidden>Analysis</button>
   </div>
 
-  <!-- Payload -->
-  <div class="section">
-    <h2>Payload</h2>
-    <pre id="payload"></pre>
+  <!-- Payload Panel -->
+  <div role="tabpanel" id="panel-payload" aria-labelledby="tab-payload">
+    <div class="section">
+      <h2>Payload</h2>
+      <pre id="payload"></pre>
+    </div>
   </div>
 
-  <!-- Analysis -->
-  <div id="analysis-section" class="section" style="display:none">
-    <h2>Analysis</h2>
-    <pre id="analysis"></pre>
+  <!-- Session Panel -->
+  <div role="tabpanel" id="panel-session" aria-labelledby="tab-session" hidden>
+    <div class="section">
+      <h2>Claude Session <span id="session-stats" class="meta"></span></h2>
+      <div id="session" class="session"></div>
+    </div>
+  </div>
+
+  <!-- Analysis Panel -->
+  <div role="tabpanel" id="panel-analysis" aria-labelledby="tab-analysis" hidden>
+    <div class="section">
+      <h2>Analysis</h2>
+      <pre id="analysis"></pre>
+    </div>
   </div>
 
   <script>
     const jobId = new URLSearchParams(window.location.search).get('id');
     document.getElementById('job-id').textContent = jobId;
+
+    // Tab switching
+    const tabs = document.querySelectorAll('[role="tab"]');
+    const panels = document.querySelectorAll('[role="tabpanel"]');
+
+    function activateTab(index) {
+      tabs.forEach((tab, i) => {
+        const selected = i === index;
+        tab.setAttribute('aria-selected', selected);
+        tab.tabIndex = selected ? 0 : -1;
+        panels[i].hidden = !selected;
+      });
+    }
+
+    tabs.forEach((tab, i) => {
+      tab.onclick = () => activateTab(i);
+      tab.onkeydown = (e) => {
+        const visibleTabs = [...tabs].filter(t => !t.hidden);
+        const currentVisibleIndex = visibleTabs.indexOf(tab);
+        if (e.key === 'ArrowRight') {
+          const next = visibleTabs[(currentVisibleIndex + 1) % visibleTabs.length];
+          activateTab([...tabs].indexOf(next));
+          next.focus();
+        }
+        if (e.key === 'ArrowLeft') {
+          const prev = visibleTabs[(currentVisibleIndex - 1 + visibleTabs.length) % visibleTabs.length];
+          activateTab([...tabs].indexOf(prev));
+          prev.focus();
+        }
+      };
+    });
 
     function formatTime(ts) {
       return new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -100,15 +180,15 @@
     }
 
     function renderSession(events) {
-      if (!events || events.length === 0) return;
+      if (!events || events.length === 0) return false;
 
       const container = document.getElementById('session');
+      container.innerHTML = ''; // Clear before rendering (prevents duplication on polling)
       const toolCount = events.filter(e => e.type === 'tool_use').length;
       const resultEvent = events.find(e => e.type === 'result');
       const duration = resultEvent?.duration_ms ? (resultEvent.duration_ms / 1000).toFixed(1) + 's' : '';
 
       document.getElementById('session-stats').textContent = `(${toolCount} tools, ${duration})`;
-      document.getElementById('session-section').style.display = 'block';
 
       for (const event of events) {
         const div = document.createElement('div');
@@ -137,6 +217,7 @@
         }
         container.appendChild(div);
       }
+      return true;
     }
 
     async function loadJob() {
@@ -182,9 +263,6 @@
           document.getElementById('error-banner').style.display = 'block';
         }
 
-        // Session
-        renderSession(job.session);
-
         // Payload
         try {
           const payload = JSON.parse(job.payload);
@@ -193,9 +271,14 @@
           document.getElementById('payload').textContent = job.payload;
         }
 
-        // Analysis
-        if (job.analysis) {
-          document.getElementById('analysis-section').style.display = 'block';
+        // Session - show tab if has events
+        const hasSession = renderSession(job.session);
+        document.getElementById('tab-session').hidden = !hasSession;
+
+        // Analysis - show tab if has analysis
+        const hasAnalysis = !!job.analysis;
+        document.getElementById('tab-analysis').hidden = !hasAnalysis;
+        if (hasAnalysis) {
           document.getElementById('analysis').textContent = JSON.stringify(job.analysis, null, 2);
         }
 
