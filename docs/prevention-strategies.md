@@ -62,15 +62,10 @@
 - [ ] **Implement fallback resolution chains**
   ```typescript
   // Try multiple resolution strategies
-  // 1. Transaction name (most specific)
-  // 2. Entity GUID (fallback)
-  // 3. App name (least specific)
+  // 1. Exact match (most specific)
+  // 2. Partial match (fallback)
+  // 3. Default (least specific)
   ```
-
-- [ ] **Enrich incomplete webhook data**
-  - Webhook payloads are often minimal
-  - Use source API (NerdGraph, etc.) to fetch full details
-  - Log enrichment success/failure for debugging
 
 - [ ] **Handle API rate limits gracefully**
   - Add exponential backoff
@@ -156,9 +151,7 @@
 |---------|---------|----------|
 | Assuming UUIDs | Team keys rejected by Linear API | Validate format, resolve if needed |
 | No fallback queries | Missing data when primary query fails | Chain multiple resolution strategies |
-| Trusting webhook payloads | Incomplete data leads to poor analysis | Always try to enrich from source |
 | Hardcoding API endpoints | Breaks in different environments | Use configuration |
-| No error handling on enrichment | One failure blocks entire flow | Catch and continue without enrichment |
 
 ### Prompt Engineering
 
@@ -276,52 +269,6 @@ describe('Webhook Integration', () => {
 
     const jobs = db.getPendingJobs(10);
     expect(jobs.length).toBe(2); // Both queued, dedup happens in worker
-  });
-});
-```
-
-#### New Relic Enrichment Testing
-
-```typescript
-describe('New Relic Enrichment', () => {
-  it('should enrich payload with NerdGraph data', async () => {
-    // Mock NerdGraph response
-    nock('https://api.newrelic.com')
-      .post('/graphql')
-      .reply(200, {
-        data: {
-          actor: {
-            account: {
-              nrql: {
-                results: [{ 'error.message': 'Test error' }]
-              }
-            }
-          }
-        }
-      });
-
-    const response = await app.inject({
-      method: 'POST',
-      url: '/webhook/newrelic',
-      payload: { error: { transaction: ['WebTransaction/test'] } },
-    });
-
-    const body = JSON.parse(response.body);
-    expect(body.enriched).toBe(true);
-  });
-
-  it('should continue without enrichment on NerdGraph failure', async () => {
-    nock('https://api.newrelic.com')
-      .post('/graphql')
-      .reply(500);
-
-    const response = await app.inject({
-      method: 'POST',
-      url: '/webhook/newrelic',
-      payload: { error: { transaction: ['test'] } },
-    });
-
-    expect(response.statusCode).toBe(202);
   });
 });
 ```
@@ -444,7 +391,6 @@ CLI Args > Environment Variables > Config File > Defaults
 - Job processing time (p50, p95, p99)
 - Claude CLI execution time
 - Linear API success rate
-- Enrichment success rate
 - Deduplication rate
 - Error rate by category
 

@@ -16,10 +16,6 @@ export interface LineuConfig {
   linear: {
     apiKey: string;
   };
-  newrelic?: {
-    apiKey: string;
-    accountId: string;
-  };
   deduplication: {
     windowDays: number;
   };

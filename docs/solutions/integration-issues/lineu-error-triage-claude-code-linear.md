@@ -5,7 +5,6 @@ category: integration-issues
 tags:
   - claude-code-cli
   - linear-api
-  - newrelic
   - webhook-processing
   - error-triage
   - typescript
@@ -16,7 +15,6 @@ tags:
 components:
   - claude-code
   - linear-sdk
-  - nerdgraph-api
   - better-sqlite3
   - fastify
 severity: medium
@@ -28,11 +26,10 @@ date_solved: 2026-01-07
 ## Overview
 
 **Lineu** is a CLI server that automates error triage by:
-1. Receiving webhooks with JSON payloads (New Relic supported)
-2. Enriching payloads via New Relic NerdGraph API
-3. Executing Claude Code CLI for contextual analysis
-4. Creating Linear issues with detailed analysis
-5. Deduplicating errors via SHA256 fingerprinting
+1. Receiving webhooks with JSON payloads
+2. Executing Claude Code CLI for contextual analysis
+3. Creating Linear issues with detailed analysis
+4. Deduplicating errors via SHA256 fingerprinting
 
 ## Problems Solved
 
@@ -42,7 +39,6 @@ date_solved: 2026-01-07
 | Claude taking too long | max turns too low (default 3) | Increased to 20 turns |
 | Claude not producing JSON | Prompt too vague | Directive prompt with 5-search limit |
 | Linear team ID validation | Using key instead of UUID | Team key resolution via `teams()` API |
-| Missing error details | Webhook lacks stack trace | NerdGraph API enrichment |
 
 ---
 
@@ -197,56 +193,6 @@ private async getTeamId(): Promise<string> {
 
 ---
 
-## Problem 5: Missing Error Details from New Relic
-
-### Symptoms
-- Webhook payload lacks stack trace
-- Claude can't analyze effectively
-
-### Root Cause
-New Relic webhooks contain alert metadata only, not error details.
-
-### Solution
-
-NerdGraph API integration to fetch `TransactionError` events:
-
-```typescript
-// src/services/newrelic.ts
-async getErrorDetails(transactionName: string, since = '7 days ago'): Promise<ErrorDetails | null> {
-  const query = `
-    {
-      actor {
-        account(id: ${this.accountId}) {
-          nrql(query: "SELECT * FROM TransactionError WHERE transactionName = '${transactionName}' SINCE ${since} LIMIT 1") {
-            results
-          }
-        }
-      }
-    }
-  `;
-
-  const response = await this.query(query);
-  const results = response.data?.actor?.account?.nrql?.results;
-
-  if (!results || results.length === 0) {
-    return null;
-  }
-
-  const error = results[0];
-  return {
-    message: String(error['error.message'] || 'Unknown'),
-    errorClass: String(error['error.class'] || 'Unknown'),
-    stackTrace: String(error['error.stack'] || ''),
-    transactionName: String(error.transactionName),
-    host: String(error.host || 'Unknown'),
-    timestamp: Number(error.timestamp),
-    attributes: error,
-  };
-}
-```
-
----
-
 ## Prevention Strategies
 
 ### Best Practices Checklist
@@ -262,7 +208,6 @@ async getErrorDetails(transactionName: string, since = '7 days ago'): Promise<Er
 - [ ] Validate ID formats before API calls
 - [ ] Add fallback resolution mechanisms (key → UUID)
 - [ ] Cache resolved IDs to avoid repeated lookups
-- [ ] Enrich webhook data when source is incomplete
 
 **Prompt Engineering for Automation**:
 - [ ] Set explicit investigation limits
@@ -278,26 +223,25 @@ async getErrorDetails(transactionName: string, since = '7 days ago'): Promise<Er
 | Timeout doesn't work | Using spawn's timeout option | Implement manual `setTimeout` |
 | Endless investigation | Open-ended prompt | Set explicit search limits |
 | API validation errors | Assuming ID formats | Validate and resolve IDs |
-| Missing data | Trusting webhook completeness | Enrich from source APIs |
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         Lineu                               │
-│                                                             │
-│  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌───────┐ │
-│  │ Webhook  │───▶│ Enrich   │───▶│ Claude   │───▶│Linear │ │
-│  │ Server   │    │ (NerdGrh)│    │ Code CLI │    │  API  │ │
-│  └──────────┘    └──────────┘    └──────────┘    └───────┘ │
-│       │                               │                     │
-│       ▼                               ▼                     │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │                    SQLite (Jobs + Fingerprints)       │  │
-│  └──────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│                         Lineu                              │
+│                                                            │
+│  ┌──────────┐         ┌──────────┐         ┌───────┐      │
+│  │ Webhook  │────────▶│ Claude   │────────▶│Linear │      │
+│  │ Server   │         │ Code CLI │         │  API  │      │
+│  └──────────┘         └──────────┘         └───────┘      │
+│       │                     │                              │
+│       ▼                     ▼                              │
+│  ┌──────────────────────────────────────────────────────┐ │
+│  │                SQLite (Jobs + Fingerprints)           │ │
+│  └──────────────────────────────────────────────────────┘ │
+└───────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -306,6 +250,5 @@ async getErrorDetails(transactionName: string, since = '7 days ago'): Promise<Er
 
 - [Claude Code Documentation](https://claude.com/claude-code)
 - [Linear API](https://developers.linear.app/docs/graphql/working-with-the-graphql-api)
-- [New Relic NerdGraph](https://docs.newrelic.com/docs/apis/nerdgraph/get-started/introduction-new-relic-nerdgraph/)
 - [Fastify](https://www.fastify.io/)
 - [better-sqlite3](https://github.com/WiseLibs/better-sqlite3)

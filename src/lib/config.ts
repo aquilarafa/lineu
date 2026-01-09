@@ -21,10 +21,6 @@ export function loadConfig(overrides: ConfigOverrides = {}): LineuConfig {
     throw new Error('LINEAR_API_KEY is required');
   }
 
-  // New Relic config (optional)
-  const newrelicApiKey = process.env.NEWRELIC_API_KEY;
-  const newrelicAccountId = process.env.NEWRELIC_ACCOUNT_ID;
-
   return {
     server: {
       port: overrides.server?.port || parseInt(process.env.LINEU_PORT || '3000', 10),
@@ -43,10 +39,6 @@ export function loadConfig(overrides: ConfigOverrides = {}): LineuConfig {
     linear: {
       apiKey: linearApiKey,
     },
-    newrelic: newrelicApiKey && newrelicAccountId ? {
-      apiKey: newrelicApiKey,
-      accountId: newrelicAccountId,
-    } : undefined,
     deduplication: {
       windowDays: parseInt(process.env.LINEU_DEDUP_WINDOW_DAYS || '7', 10),
     },
