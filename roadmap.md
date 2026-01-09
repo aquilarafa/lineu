@@ -5,7 +5,7 @@
 ### Segurança
 - [ ] Adicionar autenticação no webhook (HMAC signature ou shared secret header)
 - [ ] Implementar rate limiting com `@fastify/rate-limit` em todos endpoints
-- [ ] Adicionar autenticação no endpoint `/jobs/:id` (expõe payloads e análises)
+- [x] ~~Adicionar autenticação no endpoint `/jobs/:id`~~ (removido - usar `/api/dashboard/jobs/:id` com basic auth)
 - [ ] Validar URLs de repositório git (restringir a `https://` e `git@`)
 - [ ] Melhorar detecção de prompt injection (Unicode homoglyphs, encoding bypasses)
 

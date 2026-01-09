@@ -36,24 +36,12 @@ export async function createServer(
     repo: config.repo.path,
   }));
 
-  // Job status endpoint
-  app.get<{ Params: { id: string } }>('/jobs/:id', async (request, reply) => {
-    const { id } = request.params;
-    const job = db.getJob(Number(id));
-
-    if (!job) {
-      return reply.status(404).send({ error: 'Job not found' });
-    }
-
-    return reply.send(job);
-  });
-
   // Stats endpoint
   app.get('/stats', async () => {
     return db.getStats();
   });
 
-  // Dashboard
+  // Dashboard (includes /api/dashboard/jobs/:id with basic auth)
   await registerDashboard(app, db, linear);
 
   return app;

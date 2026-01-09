@@ -19,7 +19,7 @@ Sistema automatizado de triagem de erros que conecta webhooks, análise com Clau
 |                  |     |  - jobs (fila)   |
 |  POST /webhook   |     |  - fingerprints  |
 |  GET /health     |     +--------+---------+
-|  GET /jobs/:id   |              |
+|  GET /stats      |              |
 +------------------+              |
                                   | Worker lê jobs
       +---------------------------+ pendentes (10s)
@@ -105,8 +105,8 @@ Opções:
 Endpoints disponíveis:
 - `POST /webhook` - Recebe erros (qualquer JSON)
 - `GET /health` - Health check
-- `GET /jobs/:id` - Status de um job
 - `GET /stats` - Estatísticas
+- `GET /dashboard` - Dashboard web (requer DASHBOARD_USER/DASHBOARD_PASS)
 
 ### `lineu test` - Testa análise sem servidor
 

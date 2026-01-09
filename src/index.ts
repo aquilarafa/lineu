@@ -68,11 +68,11 @@ program
     const dryRunMsg = opts.dryRun ? '\n  Mode:    DRY-RUN (no Linear issues created)' : '';
     console.log(`
 Lineu running!
-  Repo:    ${config.repo.path}
-  Webhook: http://localhost:${config.server.port}/webhook
-  Health:  http://localhost:${config.server.port}/health
-  Jobs:    http://localhost:${config.server.port}/jobs/:id
-  Stats:   http://localhost:${config.server.port}/stats${dryRunMsg}
+  Repo:      ${config.repo.path}
+  Webhook:   http://localhost:${config.server.port}/webhook
+  Health:    http://localhost:${config.server.port}/health
+  Stats:     http://localhost:${config.server.port}/stats
+  Dashboard: http://localhost:${config.server.port}/dashboard${dryRunMsg}
     `);
 
     // Graceful shutdown

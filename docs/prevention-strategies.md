@@ -292,8 +292,12 @@ describe('E2E: Webhook to Linear', () => {
     // 2. Wait for processing
     await new Promise(resolve => setTimeout(resolve, 15000));
 
-    // 3. Check job status
-    const statusResponse = await fetch(`http://localhost:3000/jobs/${jobId}`);
+    // 3. Check job status (via dashboard API with basic auth)
+    const statusResponse = await fetch(`http://localhost:3000/api/dashboard/jobs/${jobId}`, {
+      headers: {
+        'Authorization': 'Basic ' + Buffer.from('admin:test123').toString('base64')
+      }
+    });
     const job = await statusResponse.json();
 
     expect(job.status).toBe('completed');
@@ -321,9 +325,9 @@ STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:3000/we
   -H "Content-Type: application/json" -d '{}')
 [ "$STATUS" = "400" ] || exit 1
 
-echo "4. Jobs endpoint returns 404 for missing job..."
-STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/jobs/999999)
-[ "$STATUS" = "404" ] || exit 1
+echo "4. Dashboard API requires auth..."
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/dashboard/jobs/1)
+[ "$STATUS" = "401" ] || exit 1
 
 echo "5. Stats endpoint responds..."
 curl -f http://localhost:3000/stats || exit 1
