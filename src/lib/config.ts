@@ -15,6 +15,10 @@ export function getDefaultConfigPath(): string {
   return path.join(os.homedir(), '.lineu', 'config.yml');
 }
 
+export function getDefaultDatabasePath(): string {
+  return path.join(os.homedir(), '.lineu', 'lineu.db');
+}
+
 export function loadConfigFile(configPath?: string, isExplicit = false): string[] | null {
   const filePath = configPath || getDefaultConfigPath();
   const expandedPath = filePath.startsWith('~/')
@@ -71,7 +75,7 @@ export function loadConfig(overrides: ConfigOverrides = {}): LineuConfig {
       url: overrides.repo?.url || process.env.LINEU_REPO_URL,
     },
     database: {
-      path: process.env.LINEU_DB_PATH || './lineu.db',
+      path: process.env.LINEU_DB_PATH || getDefaultDatabasePath(),
     },
     claude: {
       maxTurns: parseInt(process.env.LINEU_CLAUDE_MAX_TURNS || '10', 10),

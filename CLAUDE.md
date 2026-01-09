@@ -69,7 +69,7 @@ Sistema automatizado de triagem de erros que conecta webhooks, análise com Clau
 
 - **TypeScript** com strict mode
 - **Fastify** para servidor HTTP
-- **better-sqlite3** para fila de jobs
+- **better-sqlite3** para fila de jobs (armazenado em `~/.lineu/lineu.db`)
 - **@linear/sdk** para integração com Linear
 - **Claude CLI** para análise de erros
 
@@ -132,7 +132,7 @@ lineu stats --db ./custom-path.db
 ```
 
 Opções:
-- `-d, --db <path>` - Caminho do banco de dados (default: ./lineu.db)
+- `-d, --db <path>` - Caminho do banco de dados (default: `~/.lineu/lineu.db`)
 
 ## Arquivo de Configuração
 

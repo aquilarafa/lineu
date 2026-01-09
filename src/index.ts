@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'fs';
 import { program } from 'commander';
-import { loadConfig, loadConfigFile } from './lib/config.js';
+import { loadConfig, loadConfigFile, getDefaultDatabasePath } from './lib/config.js';
 import { createDatabase } from './db.js';
 import { ClaudeService } from './services/claude.js';
 import { LinearService } from './services/linear.js';
@@ -159,9 +159,10 @@ program
 program
   .command('stats')
   .description('Show statistics')
-  .option('-d, --db <path>', 'Database path', './lineu.db')
+  .option('-d, --db <path>', 'Database path')
   .action((opts) => {
-    const db = createDatabase(opts.db);
+    const dbPath = opts.db || getDefaultDatabasePath();
+    const db = createDatabase(dbPath);
     const stats = db.getStats();
     console.log('Job Statistics:');
     console.log(`  Total:     ${stats.total}`);
