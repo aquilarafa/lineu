@@ -1,7 +1,48 @@
 import { config as loadDotenv } from 'dotenv';
+import yaml from 'js-yaml';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 import type { LineuConfig } from '../types.js';
 
 loadDotenv();
+
+interface ConfigFile {
+  teams?: string[];
+}
+
+export function getDefaultConfigPath(): string {
+  return path.join(os.homedir(), '.lineu', 'config.yml');
+}
+
+export function loadConfigFile(configPath?: string, isExplicit = false): string[] | null {
+  const filePath = configPath || getDefaultConfigPath();
+  const expandedPath = filePath.startsWith('~/')
+    ? path.join(os.homedir(), filePath.slice(2))
+    : filePath;
+
+  try {
+    const content = fs.readFileSync(expandedPath, 'utf8');
+    const parsed = yaml.load(content, { filename: expandedPath }) as ConfigFile;
+
+    if (parsed?.teams && Array.isArray(parsed.teams)) {
+      if (parsed.teams.every(t => typeof t === 'string')) {
+        console.log(`[Config] Loaded from ${expandedPath}`);
+        return parsed.teams;
+      }
+      throw new Error('teams must be an array of strings');
+    }
+    return null;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      if (isExplicit) {
+        throw new Error(`Config file not found: ${expandedPath}`);
+      }
+      return null;
+    }
+    throw error;
+  }
+}
 
 interface ConfigOverrides {
   repo?: { path?: string; url?: string };

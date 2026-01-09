@@ -100,6 +100,7 @@ Opções:
 - `-r, --repo <path>` - Caminho do repositório local
 - `-u, --repo-url <url>` - URL Git para clonar (ex: `git@github.com:org/repo.git`)
 - `-p, --port <number>` - Porta (default: 3000)
+- `-c, --config <path>` - Arquivo de configuração (default: `~/.lineu/config.yml`)
 
 Endpoints disponíveis:
 - `POST /webhook` - Recebe erros (qualquer JSON)
@@ -120,6 +121,7 @@ Opções:
 - `-u, --repo-url <url>` - URL Git para clonar
 - `-m, --message <msg>` - Mensagem de erro (default: "TypeError: Cannot read property of undefined")
 - `-f, --file <path>` - Arquivo JSON com payload
+- `-c, --config <path>` - Arquivo de configuração (default: `~/.lineu/config.yml`)
 - `--dry-run` - Não cria issue no Linear
 
 ### `lineu stats` - Estatísticas de jobs
@@ -131,3 +133,24 @@ lineu stats --db ./custom-path.db
 
 Opções:
 - `-d, --db <path>` - Caminho do banco de dados (default: ./lineu.db)
+
+## Arquivo de Configuração
+
+O Lineu suporta um arquivo de configuração YAML para filtrar quais times do Linear podem ser sugeridos pelo Claude.
+
+**Localização padrão:** `~/.lineu/config.yml`
+
+```yaml
+# Lista de team keys do Linear permitidos para sugestão.
+# Se omitido, Claude usa todos os times ativos da API.
+teams:
+  - ENG
+  - INFRA
+  - PRODUCT
+```
+
+**Comportamento:**
+- Se o arquivo não existir no path padrão: usa todos os times (sem erro)
+- Se o arquivo não existir quando especificado via `--config`: erro
+- Se o arquivo for malformado: erro com mensagem do parser YAML
+- Times configurados mas não encontrados no Linear: warning no log

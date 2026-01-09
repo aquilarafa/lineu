@@ -4,23 +4,41 @@ import type { ClaudeAnalysis, LinearIssue, TeamInfo } from '../types.js';
 export class LinearService {
   private client: LinearClient;
   private teams: Map<string, TeamInfo> = new Map();
+  private allowedTeamKeys: Set<string> | null = null;
 
   constructor(config: { apiKey: string }) {
     this.client = new LinearClient({ apiKey: config.apiKey });
+  }
+
+  setAllowedTeams(keys: string[]): void {
+    this.allowedTeamKeys = new Set(keys);
+    console.log(`[Linear] Filtering to teams: ${keys.join(', ')}`);
   }
 
   async fetchTeams(): Promise<{ success: boolean; count: number }> {
     try {
       const result = await this.client.teams({ first: 100 });
       for (const team of result.nodes) {
+        if (this.allowedTeamKeys && !this.allowedTeamKeys.has(team.key)) {
+          continue;
+        }
         this.teams.set(team.key, {
           id: team.id,
           key: team.key,
           name: team.name,
         });
       }
-      console.log(`[Linear] Loaded ${result.nodes.length} teams`);
-      return { success: true, count: result.nodes.length };
+
+      if (this.allowedTeamKeys) {
+        for (const key of this.allowedTeamKeys) {
+          if (!this.teams.has(key)) {
+            console.warn(`[Linear] Team "${key}" not found or deactivated`);
+          }
+        }
+      }
+
+      console.log(`[Linear] Loaded ${this.teams.size} teams`);
+      return { success: true, count: this.teams.size };
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       console.error(`[Linear] Failed to fetch teams: ${msg}`);

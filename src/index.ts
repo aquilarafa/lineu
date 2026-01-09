@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'fs';
 import { program } from 'commander';
-import { loadConfig } from './lib/config.js';
+import { loadConfig, loadConfigFile } from './lib/config.js';
 import { createDatabase } from './db.js';
 import { ClaudeService } from './services/claude.js';
 import { LinearService } from './services/linear.js';
@@ -21,6 +21,7 @@ program
   .option('-r, --repo <path>', 'Path to local repository')
   .option('-u, --repo-url <url>', 'Git URL to clone (e.g., git@github.com:org/repo.git)')
   .option('-p, --port <number>', 'Port', '3000')
+  .option('-c, --config <path>', 'Path to config file (default: ~/.lineu/config.yml)')
   .option('--dry-run', 'Process jobs but do not create Linear issues')
   .action(async (opts) => {
     // Resolve repository path
@@ -43,6 +44,12 @@ program
     const db = createDatabase(config.database.path);
     const claude = new ClaudeService(config.claude);
     const linear = new LinearService(config.linear);
+
+    // Load config file and set allowed teams
+    const allowedTeams = loadConfigFile(opts.config, !!opts.config);
+    if (allowedTeams) {
+      linear.setAllowedTeams(allowedTeams);
+    }
 
     // Fetch teams at startup
     const teamResult = await linear.fetchTeams();
@@ -88,6 +95,7 @@ program
   .option('-u, --repo-url <url>', 'Git URL to clone')
   .option('-m, --message <msg>', 'Error message', 'TypeError: Cannot read property of undefined')
   .option('-f, --file <path>', 'JSON file with payload')
+  .option('-c, --config <path>', 'Path to config file (default: ~/.lineu/config.yml)')
   .option('--dry-run', "Don't create Linear card")
   .action(async (opts) => {
     let repoPath = opts.repo;
@@ -113,6 +121,13 @@ program
 
     // Fetch teams for routing
     const linear = new LinearService(config.linear);
+
+    // Load config file and set allowed teams
+    const allowedTeams = loadConfigFile(opts.config, !!opts.config);
+    if (allowedTeams) {
+      linear.setAllowedTeams(allowedTeams);
+    }
+
     const teamResult = await linear.fetchTeams();
     if (!teamResult.success || teamResult.count === 0) {
       console.error('Error: Failed to load Linear teams');
