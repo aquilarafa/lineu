@@ -83,7 +83,8 @@ src/
 ├── db.ts             # Camada de banco de dados SQLite
 ├── types.ts          # Definições de tipos
 ├── lib/              # Utilitários (config, fingerprint, git)
-└── services/         # Integrações externas (claude, linear, newrelic)
+├── services/         # Integrações externas (claude, linear, newrelic)
+└── prompts/          # Templates de prompt para Claude
 ```
 
 ## Comandos
