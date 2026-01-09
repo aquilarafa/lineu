@@ -6,14 +6,16 @@ import { dirname, join } from 'path';
 import fs from 'fs';
 import os from 'os';
 import type { LineuDatabase } from '../db.js';
-import type { ClaudeSessionEvent } from '../types.js';
+import type { LinearService } from '../services/linear.js';
+import type { ClaudeSessionEvent, ClaudeAnalysis } from '../types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export async function registerDashboard(
   app: FastifyInstance,
-  db: LineuDatabase
+  db: LineuDatabase,
+  linear: LinearService
 ): Promise<void> {
   const dashboardUser = process.env.DASHBOARD_USER;
   const dashboardPass = process.env.DASHBOARD_PASS;
@@ -101,6 +103,54 @@ export async function registerDashboard(
         session,
         analysis: job.analysis ? JSON.parse(job.analysis) : null,
       };
+    });
+
+    // API: Create Linear issue from dry-run job
+    instance.post<{ Params: { id: string } }>('/jobs/:id/create-issue', async (request, reply) => {
+      const jobId = Number(request.params.id);
+      if (!Number.isInteger(jobId) || jobId <= 0) {
+        return reply.status(400).send({ error: 'Invalid job ID' });
+      }
+
+      const job = db.getJob(jobId);
+      if (!job) {
+        return reply.status(404).send({ error: 'Job not found' });
+      }
+      if (job.status !== 'completed' || job.linear_issue_id !== null) {
+        return reply.status(400).send({ error: 'Job not eligible for issue creation' });
+      }
+      if (!job.analysis) {
+        return reply.status(400).send({ error: 'Job has no analysis' });
+      }
+
+      const analysis = JSON.parse(job.analysis) as ClaudeAnalysis;
+      const payload = JSON.parse(job.payload) as Record<string, unknown>;
+
+      // Resolve team using suggested_team from analysis
+      const team = linear.resolveTeamId(analysis.suggested_team);
+      if (!team) {
+        return reply.status(400).send({ error: `Team "${analysis.suggested_team}" not found. Available teams may not be loaded.` });
+      }
+
+      try {
+        const issue = await linear.createIssue(team.id, payload, analysis, job.fingerprint);
+
+        // CRITICAL: Same behavior as normal worker
+        db.insertFingerprint(job.fingerprint, issue.id, issue.identifier);
+        db.markCompleted(jobId, issue.id, issue.identifier, job.analysis);
+
+        return reply.status(201).send({
+          issue: {
+            id: issue.id,
+            identifier: issue.identifier,
+            url: issue.url
+          }
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        request.log.error({ err, jobId }, 'Failed to create Linear issue');
+        return reply.status(500).send({ error: `Failed to create issue: ${message}` });
+      }
     });
   }, { prefix: '/api/dashboard' });
 

@@ -62,7 +62,7 @@ program
     const worker = startWorker(config, db, claude, linear, { dryRun: opts.dryRun });
 
     // Start HTTP server
-    const server = await createServer(config, db);
+    const server = await createServer(config, db, linear);
     await server.listen({ port: config.server.port, host: '0.0.0.0' });
 
     const dryRunMsg = opts.dryRun ? '\n  Mode:    DRY-RUN (no Linear issues created)' : '';

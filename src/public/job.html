@@ -61,6 +61,7 @@
     <div>
       <span id="job-status" class="status">-</span>
       <a id="linear-link" class="linear-link" style="display:none" target="_blank"></a>
+      <button id="create-issue-btn" onclick="createIssue()" style="display:none;margin-left:0.5rem;background:var(--accent);color:white;border:none;padding:0.25rem 0.75rem;border-radius:4px;cursor:pointer;font-size:0.875rem;">Create Linear Issue</button>
     </div>
   </div>
 
@@ -157,8 +158,18 @@
           : 'in progress';
         document.getElementById('job-meta').textContent = `Created: ${created} | Duration: ${duration}`;
 
-        // Linear link
-        if (job.linear_identifier) {
+        // Linear link or create button
+        if (job.status === 'completed' && !job.linear_issue_id) {
+          // Dry-run: show badge and create button (no link)
+          const link = document.getElementById('linear-link');
+          link.textContent = 'DRY-RUN';
+          link.href = '#';
+          link.style.display = 'inline-block';
+          link.style.background = 'var(--warning)';
+          link.onclick = (e) => e.preventDefault();
+          document.getElementById('create-issue-btn').style.display = 'inline-block';
+        } else if (job.linear_identifier) {
+          // Real issue: show link
           const link = document.getElementById('linear-link');
           link.textContent = job.linear_identifier;
           link.href = `https://linear.app/issue/${job.linear_identifier}`;
@@ -194,6 +205,29 @@
         }
       } catch (err) {
         document.getElementById('payload').textContent = 'Error: ' + err.message;
+      }
+    }
+
+    async function createIssue() {
+      const btn = document.getElementById('create-issue-btn');
+      btn.disabled = true;
+      btn.textContent = 'Creating...';
+
+      try {
+        const res = await fetch(`/api/dashboard/jobs/${jobId}/create-issue`, {
+          method: 'POST'
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Failed to create issue');
+        }
+
+        location.reload();
+      } catch (err) {
+        alert(err.message);
+        btn.disabled = false;
+        btn.textContent = 'Create Linear Issue';
       }
     }
 

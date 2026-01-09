@@ -36,6 +36,7 @@ export interface LineuDatabase {
   claimNextJob: () => ClaimedJob | undefined;
   markProcessing: (id: number) => void;
   markCompleted: (id: number, linearIssueId: string, linearIdentifier: string, analysis: string) => void;
+  markCompletedDryRun: (id: number, analysis: string) => void;
   markFailed: (id: number, error: string) => void;
   markDuplicate: (id: number, linearIdentifier: string) => void;
 
@@ -98,6 +99,10 @@ export function createDatabase(dbPath: string): LineuDatabase {
 
   const markCompletedStmt = db.prepare(`
     UPDATE jobs SET status = 'completed', linear_issue_id = ?, linear_identifier = ?, analysis = ?, processed_at = CURRENT_TIMESTAMP WHERE id = ?
+  `);
+
+  const markCompletedDryRunStmt = db.prepare(`
+    UPDATE jobs SET status = 'completed', analysis = ?, processed_at = CURRENT_TIMESTAMP WHERE id = ?
   `);
 
   const markFailedStmt = db.prepare(`
@@ -175,6 +180,9 @@ export function createDatabase(dbPath: string): LineuDatabase {
 
     markCompleted: (id, linearIssueId, linearIdentifier, analysis) =>
       markCompletedStmt.run(linearIssueId, linearIdentifier, analysis, id),
+
+    markCompletedDryRun: (id, analysis) =>
+      markCompletedDryRunStmt.run(analysis, id),
 
     markFailed: (id, error) => markFailedStmt.run(error, id),
 

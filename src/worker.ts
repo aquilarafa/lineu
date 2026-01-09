@@ -105,7 +105,7 @@ async function processJob(
     if (dryRun) {
       console.log(`[Job ${job.id}] DRY-RUN: Would create issue in team ${team.key}`);
       console.log(`[Job ${job.id}] Analysis:`, JSON.stringify(analysis, null, 2));
-      db.markCompleted(job.id, 'dry-run', `DRY-RUN-${team.key}`, JSON.stringify(analysis));
+      db.markCompletedDryRun(job.id, JSON.stringify(analysis));
       console.log(`[Job ${job.id}] Completed (dry-run)`);
     } else {
       console.log(`[Job ${job.id}] Creating Linear issue in team ${team.key}...`);

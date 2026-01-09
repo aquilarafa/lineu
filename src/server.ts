@@ -1,12 +1,14 @@
 import Fastify, { FastifyInstance } from 'fastify';
 import type { LineuConfig } from './types.js';
 import type { LineuDatabase } from './db.js';
+import type { LinearService } from './services/linear.js';
 import { generateFingerprint } from './lib/fingerprint.js';
 import { registerDashboard } from './dashboard/routes.js';
 
 export async function createServer(
   config: LineuConfig,
-  db: LineuDatabase
+  db: LineuDatabase,
+  linear: LinearService
 ): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
 
@@ -52,7 +54,7 @@ export async function createServer(
   });
 
   // Dashboard
-  await registerDashboard(app, db);
+  await registerDashboard(app, db, linear);
 
   return app;
 }
