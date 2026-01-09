@@ -135,9 +135,8 @@ export async function registerDashboard(
       try {
         const issue = await linear.createIssue(team.id, payload, analysis, job.fingerprint);
 
-        // CRITICAL: Same behavior as normal worker
-        db.insertFingerprint(job.fingerprint, issue.id, issue.identifier);
-        db.markCompleted(jobId, issue.id, issue.identifier, job.analysis);
+        // CRITICAL: Atomic transaction - same behavior as normal worker
+        db.completeJobWithFingerprint(jobId, job.fingerprint, issue.id, issue.identifier, job.analysis);
 
         return reply.status(201).send({
           issue: {

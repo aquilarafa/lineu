@@ -10,7 +10,7 @@
 - [ ] Melhorar detecção de prompt injection (Unicode homoglyphs, encoding bypasses)
 
 ### Integridade de Dados
-- [ ] Wrap `insertFingerprint` + `markCompleted` em transação atômica
+- [x] Wrap `insertFingerprint` + `markCompleted` em transação atômica
 - [ ] Implementar recuperação de jobs stuck em `processing` (heartbeat/lease com timeout)
 - [ ] Corrigir race condition na deduplicação (lock no fingerprint antes de processar)
 

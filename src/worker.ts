@@ -111,9 +111,8 @@ async function processJob(
       console.log(`[Job ${job.id}] Creating Linear issue in team ${team.key}...`);
       const issue = await linear.createIssue(team.id, payload, analysis, job.fingerprint);
 
-      // 6. Save fingerprint and mark complete
-      db.insertFingerprint(job.fingerprint, issue.id, issue.identifier);
-      db.markCompleted(job.id, issue.id, issue.identifier, JSON.stringify(analysis));
+      // 6. Save fingerprint and mark complete (atomic transaction)
+      db.completeJobWithFingerprint(job.id, job.fingerprint, issue.id, issue.identifier, JSON.stringify(analysis));
       console.log(`[Job ${job.id}] Completed → ${issue.identifier}`);
     }
 

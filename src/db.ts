@@ -46,6 +46,15 @@ export interface LineuDatabase {
   findFingerprint: (hash: string, windowDays: number) => { linear_identifier: string } | undefined;
   insertFingerprint: (hash: string, linearIssueId: string, linearIdentifier: string) => void;
 
+  // Atomic operations
+  completeJobWithFingerprint: (
+    jobId: number,
+    fingerprint: string,
+    linearIssueId: string,
+    linearIdentifier: string,
+    analysis: string
+  ) => void;
+
   // Stats
   getStats: () => { total: number; pending: number; completed: number; failed: number; duplicate: number };
 
@@ -128,6 +137,18 @@ export function createDatabase(dbPath: string): LineuDatabase {
     VALUES (?, ?, ?)
   `);
 
+  // Atomic transaction: insert fingerprint + mark job completed
+  const completeJobWithFingerprintTx = db.transaction((
+    jobId: number,
+    fingerprint: string,
+    linearIssueId: string,
+    linearIdentifier: string,
+    analysis: string
+  ) => {
+    insertFingerprintStmt.run(fingerprint, linearIssueId, linearIdentifier);
+    markCompletedStmt.run(linearIssueId, linearIdentifier, analysis, jobId);
+  });
+
   const getStatsStmt = db.prepare(`
     SELECT
       COUNT(*) as total,
@@ -198,6 +219,9 @@ export function createDatabase(dbPath: string): LineuDatabase {
 
     insertFingerprint: (hash, linearIssueId, linearIdentifier) =>
       insertFingerprintStmt.run(hash, linearIssueId, linearIdentifier),
+
+    completeJobWithFingerprint: (jobId, fingerprint, linearIssueId, linearIdentifier, analysis) =>
+      completeJobWithFingerprintTx(jobId, fingerprint, linearIssueId, linearIdentifier, analysis),
 
     getStats: () => getStatsStmt.get() as { total: number; pending: number; completed: number; failed: number; duplicate: number },
 
