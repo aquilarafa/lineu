@@ -30,6 +30,7 @@ npm run dev       # Development mode
 
 ## Environment Variables
 
+- `ANTHROPIC_API_KEY` - Required for Docker/server deploy (optional locally)
 - `LINEAR_API_KEY` - Required to create issues
 - `DASHBOARD_USER` / `DASHBOARD_PASS` - Dashboard authentication
 
@@ -46,3 +47,4 @@ lineu stats                         # View job statistics
 - [docs/architecture.md](docs/architecture.md) - Diagram and processing flow
 - [docs/cli-usage.md](docs/cli-usage.md) - All command details
 - [docs/configuration.md](docs/configuration.md) - Configuration and environment variables
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) - Docker deployment
