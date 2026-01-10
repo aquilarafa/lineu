@@ -1,48 +1,48 @@
-# Lineu - Sistema de Triagem de Erros
+# Lineu - Error Triage System
 
-Automatiza triagem de erros: webhook → análise com Claude CLI → issue no Linear.
+Automates error triage: webhook → Claude CLI analysis → Linear issue.
 
 ## Stack
 
 TypeScript, Fastify, better-sqlite3, @linear/sdk, Claude CLI
 
-## Estrutura
+## Structure
 
 ```
 src/
 ├── index.ts      # CLI entry point (serve, test, stats)
-├── server.ts     # Endpoints Fastify
-├── worker.ts     # Job processor (poll 10s)
+├── server.ts     # Fastify endpoints
+├── worker.ts     # Job processor (polls every 10s)
 ├── db.ts         # SQLite (~/.lineu/lineu.db)
-├── types.ts      # Definições de tipos
-├── lib/          # Utilitários (config, fingerprint, git)
-├── services/     # Integrações (claude, linear, newrelic)
-└── prompts/      # Templates de prompt
+├── types.ts      # Type definitions
+├── lib/          # Utilities (config, fingerprint, git)
+├── services/     # Integrations (claude, linear, newrelic)
+└── prompts/      # Prompt templates
 ```
 
-## Desenvolvimento
+## Development
 
 ```bash
-npm install       # Instalar dependências
-npm run build     # Compilar TypeScript
-npm run dev       # Modo desenvolvimento
+npm install       # Install dependencies
+npm run build     # Compile TypeScript
+npm run dev       # Development mode
 ```
 
-## Variáveis de Ambiente
+## Environment Variables
 
-- `LINEAR_API_KEY` - Obrigatório para criar issues
-- `DASHBOARD_USER` / `DASHBOARD_PASS` - Proteção do /dashboard
+- `LINEAR_API_KEY` - Required to create issues
+- `DASHBOARD_USER` / `DASHBOARD_PASS` - Dashboard authentication
 
-## Comandos Principais
+## Main Commands
 
 ```bash
-lineu serve --repo /path/to/repo    # Inicia servidor webhook
-lineu test --repo /path --dry-run   # Testa análise localmente
-lineu stats                         # Ver estatísticas de jobs
+lineu serve --repo /path/to/repo    # Start webhook server
+lineu test --repo /path --dry-run   # Test analysis locally
+lineu stats                         # View job statistics
 ```
 
-## Documentação
+## Documentation
 
-- [docs/architecture.md](docs/architecture.md) - Diagrama e fluxo de processamento
-- [docs/cli-usage.md](docs/cli-usage.md) - Detalhes de todos os comandos
-- [docs/configuration.md](docs/configuration.md) - Configuração e variáveis de ambiente
+- [docs/architecture.md](docs/architecture.md) - Diagram and processing flow
+- [docs/cli-usage.md](docs/cli-usage.md) - All command details
+- [docs/configuration.md](docs/configuration.md) - Configuration and environment variables

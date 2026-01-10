@@ -1,36 +1,36 @@
-# Arquitetura do Lineu
+# Lineu Architecture
 
-## Diagrama
+## Diagram
 
 ```
 +------------------+
-|  Fonte de Erros  |
+|  Error Source    |
 |  (New Relic,     |
 |   Sentry, etc)   |
 +--------+---------+
          |
-   POST qualquer JSON
+   POST any JSON
          |
          v
 +------------------+     +------------------+
 |  Lineu Server    |---->|    SQLite DB     |
-|                  |     |  - jobs (fila)   |
+|                  |     |  - jobs (queue)  |
 |  POST /webhook   |     |  - fingerprints  |
 |  GET /health     |     +--------+---------+
 |  GET /stats      |              |
 +------------------+              |
-                                  | Worker lê jobs
-      +---------------------------+ pendentes (10s)
+                                  | Worker reads
+      +---------------------------+ pending jobs (10s)
       |
       v
 +------------------+     +------------------+
-|  Background      |     |  Repositório     |
-|  Worker          |---->|  Configurado     |
+|  Background      |     |  Configured      |
+|  Worker          |---->|  Repository      |
 |                  |     |                  |
-|  - Processa jobs |     |  git pull (5min) |
+|  - Process jobs  |     |  git pull (5min) |
 +--------+---------+     +------------------+
          |
-         | Executa Claude Code
+         | Runs Claude Code
          v
 +------------------+
 |  Claude Code CLI |
@@ -43,36 +43,36 @@
 +------------------+
 |  Linear API      |
 |                  |
-|  Cria issue com: |
-|  - Análise       |
-|  - Arquivos      |
-|  - Sugestões     |
+|  Creates issue:  |
+|  - Analysis      |
+|  - Files         |
+|  - Suggestions   |
 +------------------+
 ```
 
-## Fluxo de Processamento
+## Processing Flow
 
-1. **Webhook recebe erro** - Salva job no SQLite e retorna 202 imediatamente
-2. **Worker processa** - Lê jobs pendentes a cada 10 segundos
-3. **Git sync** - Pull roda a cada 5 minutos (independente dos jobs)
-4. **Tratamento de falhas** - Se Claude/Linear falhar, job fica `failed` (não cria issue lixo)
+1. **Webhook receives error** - Saves job to SQLite and returns 202 immediately
+2. **Worker processes** - Reads pending jobs every 10 seconds
+3. **Git sync** - Pull runs every 5 minutes (independent of jobs)
+4. **Failure handling** - If Claude/Linear fails, job becomes `failed` (no junk issue created)
 
-## Componentes Principais
+## Main Components
 
-| Componente | Arquivo | Responsabilidade |
-|------------|---------|------------------|
-| CLI | `src/index.ts` | Entry point, comandos serve/test/stats |
-| Server | `src/server.ts` | Endpoints Fastify (webhook, health, stats, dashboard) |
-| Worker | `src/worker.ts` | Loop de processamento de jobs em background |
-| Database | `src/db.ts` | Camada SQLite para jobs e fingerprints |
-| Claude | `src/services/claude.ts` | Integração com Claude CLI |
-| Linear | `src/services/linear.ts` | Criação de issues via SDK |
+| Component | File | Responsibility |
+|-----------|------|----------------|
+| CLI | `src/index.ts` | Entry point, serve/test/stats commands |
+| Server | `src/server.ts` | Fastify endpoints (webhook, health, stats, dashboard) |
+| Worker | `src/worker.ts` | Background job processing loop |
+| Database | `src/db.ts` | SQLite layer for jobs and fingerprints |
+| Claude | `src/services/claude.ts` | Claude CLI integration |
+| Linear | `src/services/linear.ts` | Issue creation via SDK |
 
-## Endpoints HTTP
+## HTTP Endpoints
 
-| Método | Path | Descrição |
-|--------|------|-----------|
-| POST | `/webhook` | Recebe erros (qualquer JSON) |
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/webhook` | Receives errors (any JSON) |
 | GET | `/health` | Health check |
-| GET | `/stats` | Estatísticas de jobs |
-| GET | `/dashboard` | Dashboard web (requer autenticação) |
+| GET | `/stats` | Job statistics |
+| GET | `/dashboard` | Web dashboard (requires authentication) |

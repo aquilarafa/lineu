@@ -76,13 +76,12 @@
 
 - [ ] **Set explicit investigation limits**
   ```
-  IMPORTANTE: Voce tem no MAXIMO 5 buscas para investigar.
-  Apos isso, DEVE responder com JSON.
+  IMPORTANT: You have at MOST 5 searches to investigate.
+  After that, you MUST respond with JSON.
   ```
 
 - [ ] **Use directive language**
-  - Portuguese: "DEVE", "IMEDIATAMENTE", "OBRIGATORIO"
-  - English: "MUST", "IMMEDIATELY", "REQUIRED"
+  - "MUST", "IMMEDIATELY", "REQUIRED"
   - Emphasize constraints in CAPS
 
 - [ ] **Provide clear output templates**
@@ -90,17 +89,17 @@
   {
     "category": "bug|infrastructure|...",
     "priority": "critical|high|medium|low",
-    "summary": "Descricao curta (max 80 chars)"
+    "summary": "Short description (max 80 chars)"
   }
   ```
 
 - [ ] **Include escape hatches for unknown situations**
-  - "Se nao encontrar codigo relevante, responda com hipotese baseada no payload"
+  - "If you don't find relevant code, respond with hypothesis based on the payload"
   - Prevents infinite investigation loops
 
 - [ ] **Request JSON-only responses**
-  - "Responda APENAS com o JSON acima"
-  - "Nenhum texto adicional"
+  - "Respond ONLY with the JSON above"
+  - "No additional text"
   - Simplifies parsing
 
 ### Fingerprinting and Deduplication
@@ -158,7 +157,7 @@
 | Pitfall | Problem | Solution |
 |---------|---------|----------|
 | Open-ended investigation | Claude explores indefinitely | Set explicit turn/search limits |
-| Soft language ("please", "try") | Model ignores constraints | Use directive language ("MUST", "DEVE") |
+| Soft language ("please", "try") | Model ignores constraints | Use directive language ("MUST") |
 | No output template | Inconsistent response format | Provide exact JSON schema |
 | Mixed response formats | Parsing becomes complex | Require JSON-only responses |
 | No escape clauses | Model loops on impossible tasks | Provide fallback instructions |

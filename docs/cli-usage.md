@@ -1,8 +1,8 @@
-# Comandos CLI
+# CLI Commands
 
 ## `lineu serve`
 
-Inicia o servidor de webhooks.
+Starts the webhook server.
 
 ```bash
 lineu serve --repo /path/to/repo
@@ -10,20 +10,20 @@ lineu serve --repo-url git@github.com:org/repo.git
 lineu serve --repo /path/to/repo --port 3001
 ```
 
-### Opções
+### Options
 
-| Flag | Descrição | Default |
-|------|-----------|---------|
-| `-r, --repo <path>` | Caminho do repositório local | - |
-| `-u, --repo-url <url>` | URL Git para clonar | - |
-| `-p, --port <number>` | Porta do servidor | 3000 |
-| `-c, --config <path>` | Arquivo de configuração | `~/.lineu/config.yml` |
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-r, --repo <path>` | Local repository path | - |
+| `-u, --repo-url <url>` | Git URL to clone | - |
+| `-p, --port <number>` | Server port | 3000 |
+| `-c, --config <path>` | Config file | `~/.lineu/config.yml` |
 
 ---
 
 ## `lineu test`
 
-Testa análise de erro localmente, sem iniciar o servidor.
+Tests error analysis locally, without starting the server.
 
 ```bash
 lineu test --repo /path/to/repo --message "TypeError: undefined"
@@ -31,30 +31,30 @@ lineu test --repo /path/to/repo --file ./payload.json
 lineu test --repo /path/to/repo --file ./payload.json --dry-run
 ```
 
-### Opções
+### Options
 
-| Flag | Descrição | Default |
-|------|-----------|---------|
-| `-r, --repo <path>` | Caminho do repositório local | - |
-| `-u, --repo-url <url>` | URL Git para clonar | - |
-| `-m, --message <msg>` | Mensagem de erro simples | `TypeError: Cannot read property of undefined` |
-| `-f, --file <path>` | Arquivo JSON com payload completo | - |
-| `-c, --config <path>` | Arquivo de configuração | `~/.lineu/config.yml` |
-| `--dry-run` | Não cria issue no Linear | false |
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-r, --repo <path>` | Local repository path | - |
+| `-u, --repo-url <url>` | Git URL to clone | - |
+| `-m, --message <msg>` | Simple error message | `TypeError: Cannot read property of undefined` |
+| `-f, --file <path>` | JSON file with full payload | - |
+| `-c, --config <path>` | Config file | `~/.lineu/config.yml` |
+| `--dry-run` | Don't create Linear issue | false |
 
 ---
 
 ## `lineu stats`
 
-Exibe estatísticas de jobs processados.
+Shows processed job statistics.
 
 ```bash
 lineu stats
 lineu stats --db ./custom-path.db
 ```
 
-### Opções
+### Options
 
-| Flag | Descrição | Default |
-|------|-----------|---------|
-| `-d, --db <path>` | Caminho do banco de dados | `~/.lineu/lineu.db` |
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-d, --db <path>` | Database path | `~/.lineu/lineu.db` |

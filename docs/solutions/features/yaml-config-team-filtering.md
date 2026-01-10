@@ -11,15 +11,15 @@ commit: 5eb846a
 
 ## Problem
 
-Antes desta feature, o Lineu usava todos os times ativos do Linear quando Claude sugeria um time para rotear o issue. Em organizações com muitos times, isso causava:
+Before this feature, Lineu used all active Linear teams when Claude suggested a team to route the issue. In organizations with many teams, this caused:
 
-1. **Ruído na sugestão**: Claude poderia sugerir times irrelevantes
-2. **Falta de controle**: Não havia como limitar quais times poderiam receber issues automatizados
-3. **Configuração inflexível**: Qualquer mudança requeria alteração de código
+1. **Suggestion noise**: Claude could suggest irrelevant teams
+2. **Lack of control**: No way to limit which teams could receive automated issues
+3. **Inflexible configuration**: Any change required code modifications
 
 ## Solution
 
-Implementamos suporte a arquivo de configuração YAML em `~/.lineu/config.yml` que permite filtrar quais times do Linear podem ser sugeridos pelo Claude.
+We added support for a YAML config file at `~/.lineu/config.yml` that filters which Linear teams Claude can suggest.
 
 ```yaml
 # ~/.lineu/config.yml
@@ -33,7 +33,7 @@ teams:
 
 ### 1. Config Loading (`src/lib/config.ts`)
 
-A função `loadConfigFile` carrega e valida o YAML:
+The `loadConfigFile` function loads and validates the YAML:
 
 ```typescript
 export function getDefaultConfigPath(): string {
@@ -70,14 +70,14 @@ export function loadConfigFile(configPath?: string, isExplicit = false): string[
 }
 ```
 
-**Comportamento de erro:**
-- Config no path default não existe → silenciosamente usa todos os times
-- Config especificado via `--config` não existe → erro explícito
-- YAML malformado → erro com mensagem do parser
+**Error behavior:**
+- Config at default path doesn't exist → silently uses all teams
+- Config specified via `--config` doesn't exist → explicit error
+- Malformed YAML → error with parser message
 
 ### 2. Team Filtering (`src/services/linear.ts`)
 
-O `LinearService` filtra times durante o fetch:
+`LinearService` filters teams during fetch:
 
 ```typescript
 export class LinearService {
@@ -115,13 +115,13 @@ export class LinearService {
 
 ### 3. CLI Integration (`src/index.ts`)
 
-Nova opção `--config` nos comandos `serve` e `test`:
+New `--config` option in `serve` and `test` commands:
 
 ```typescript
 .option('-c, --config <path>', 'Config file path', getDefaultConfigPath())
 ```
 
-Integração no startup:
+Integration at startup:
 
 ```typescript
 const configPath = options.config;
@@ -137,7 +137,7 @@ if (allowedTeams) {
 
 ### Basic Usage
 
-Crie `~/.lineu/config.yml`:
+Create `~/.lineu/config.yml`:
 
 ```yaml
 teams:
@@ -145,7 +145,7 @@ teams:
   - INFRA
 ```
 
-Rode normalmente:
+Run normally:
 
 ```bash
 lineu serve --repo /path/to/repo
@@ -161,7 +161,7 @@ lineu serve --repo /path/to/repo --config ./my-config.yml
 
 ### No Config (All Teams)
 
-Se o arquivo não existir no path default, todos os times são usados:
+If the file doesn't exist at the default path, all teams are used:
 
 ```bash
 lineu serve --repo /path/to/repo
@@ -170,11 +170,11 @@ lineu serve --repo /path/to/repo
 
 ## Key Decisions
 
-1. **YAML over JSON**: Mais legível para configuração humana, suporta comentários
-2. **Default path em ~/.lineu/**: Centraliza toda configuração do Lineu
-3. **Silent fallback**: Config ausente no path default não é erro
-4. **Explicit config is required**: Config especificado via `--config` deve existir
-5. **Warning for missing teams**: Times configurados mas não encontrados geram warning, não erro
+1. **YAML over JSON**: More readable for human configuration, supports comments
+2. **Default path at ~/.lineu/**: Centralizes all Lineu configuration
+3. **Silent fallback**: Missing config at default path is not an error
+4. **Explicit config is required**: Config specified via `--config` must exist
+5. **Warning for missing teams**: Configured but not found teams generate warning, not error
 
 ## Dependencies Added
 

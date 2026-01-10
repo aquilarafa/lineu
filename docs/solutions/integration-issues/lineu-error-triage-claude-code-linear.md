@@ -27,7 +27,7 @@ date_solved: 2026-01-07
 
 **Lineu** is a CLI server that automates error triage by:
 1. Receiving webhooks with JSON payloads
-2. Executing Claude Code CLI for contextual analysis
+2. Running Claude Code CLI for contextual analysis
 3. Creating Linear issues with detailed analysis
 4. Deduplicating errors via SHA256 fingerprinting
 
@@ -107,47 +107,47 @@ Directive prompt with explicit limits:
 ```typescript
 // src/services/claude.ts
 private buildPrompt(payload: Record<string, unknown>): string {
-  return `Você é um analisador de erros de produção. Analise rapidamente e responda APENAS com JSON.
+  return `You are a production error analyzer. Analyze quickly and respond ONLY with JSON.
 
-## Payload do Erro
+## Error Payload
 
 \`\`\`json
 ${JSON.stringify(payload, null, 2)}
 \`\`\`
 
-## Instruções IMPORTANTES
+## IMPORTANT Instructions
 
-IMPORTANTE: Você tem no MÁXIMO 5 buscas para investigar. Após isso, DEVE responder com JSON.
+IMPORTANT: You have at MOST 5 searches to investigate. After that, you MUST respond with JSON.
 
-1. Faça 1-2 buscas rápidas (grep/glob) para localizar arquivos relevantes
-2. Leia no máximo 2-3 arquivos chave
-3. IMEDIATAMENTE responda com o JSON abaixo
+1. Do 1-2 quick searches (grep/glob) to locate relevant files
+2. Read at most 2-3 key files
+3. IMMEDIATELY respond with the JSON below
 
-NÃO continue investigando indefinidamente. Faça uma hipótese rápida baseada no que encontrou.
+DO NOT continue investigating indefinitely. Make a quick hypothesis based on what you found.
 
-## Resposta OBRIGATÓRIA (JSON)
+## REQUIRED Response (JSON)
 
 \`\`\`json
 {
   "category": "bug|infrastructure|database|external-service|configuration|performance",
   "priority": "critical|high|medium|low",
-  "summary": "Descrição curta (max 80 chars)",
-  "affected_files": ["caminho/arquivo.rb"],
-  "root_cause_hypothesis": "Causa provável",
-  "suggested_fix": "Como resolver",
-  "investigation_steps": ["Passo 1", "Passo 2"],
-  "related_code": "Snippet relevante"
+  "summary": "Short description (max 80 chars)",
+  "affected_files": ["path/to/file.rb"],
+  "root_cause_hypothesis": "Probable cause",
+  "suggested_fix": "How to fix",
+  "investigation_steps": ["Step 1", "Step 2"],
+  "related_code": "Relevant snippet"
 }
 \`\`\`
 
-RESPONDA APENAS COM O JSON ACIMA. Nenhum texto adicional.`;
+RESPOND ONLY WITH THE JSON ABOVE. No additional text.`;
 }
 ```
 
 **Key insights**:
-- Explicit search limits ("MÁXIMO 5 buscas")
-- Permission to hypothesize ("Faça uma hipótese rápida")
-- Strong directive language ("DEVE responder", "APENAS com JSON")
+- Explicit search limits ("at MOST 5 searches")
+- Permission to hypothesize ("Make a quick hypothesis")
+- Strong directive language ("MUST respond", "ONLY with JSON")
 
 ---
 
@@ -158,7 +158,7 @@ RESPONDA APENAS COM O JSON ACIMA. Nenhum texto adicional.`;
 - Issue creation failed
 
 ### Root Cause
-Linear's `createIssue` requires UUID, but users configure team key (e.g., "OUTF").
+Linear's `createIssue` requires UUID, but users configure team key (e.g., "ENG").
 
 ### Solution
 
@@ -211,7 +211,7 @@ private async getTeamId(): Promise<string> {
 
 **Prompt Engineering for Automation**:
 - [ ] Set explicit investigation limits
-- [ ] Use directive language ("DEVE", "MUST", "IMEDIATAMENTE")
+- [ ] Use directive language ("MUST", "IMMEDIATELY")
 - [ ] Provide clear output templates with required fields
 - [ ] Give permission to hypothesize with incomplete data
 
