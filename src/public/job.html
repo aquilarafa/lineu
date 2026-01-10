@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -87,7 +87,7 @@
   </style>
 </head>
 <body>
-  <a href="/dashboard/" class="back-link">&larr; Voltar ao Dashboard</a>
+  <a href="/dashboard/" class="back-link">&larr; Back to Dashboard</a>
 
   <div class="header">
     <div>
@@ -104,7 +104,7 @@
   <div id="error-banner" class="error-banner" style="display:none"></div>
 
   <!-- Tabs -->
-  <div role="tablist" aria-label="Detalhes do Job">
+  <div role="tablist" aria-label="Job Details">
     <button role="tab" id="tab-payload" aria-selected="true" aria-controls="panel-payload" tabindex="0">Payload</button>
     <button role="tab" id="tab-session" aria-selected="false" aria-controls="panel-session" tabindex="-1" hidden>Session</button>
     <button role="tab" id="tab-analysis" aria-selected="false" aria-controls="panel-analysis" tabindex="-1" hidden>Analysis</button>
@@ -170,7 +170,7 @@
     });
 
     function formatTime(ts) {
-      return new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      return new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     }
 
     function escapeHtml(text) {
@@ -233,7 +233,7 @@
         statusEl.className = `status ${job.status}`;
 
         // Meta
-        const created = new Date(job.created_at).toLocaleString('pt-BR');
+        const created = new Date(job.created_at).toLocaleString('en-US');
         const duration = job.processed_at
           ? ((new Date(job.processed_at) - new Date(job.created_at)) / 1000).toFixed(1) + 's'
           : 'in progress';
