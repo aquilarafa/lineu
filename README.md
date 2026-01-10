@@ -4,8 +4,6 @@ Automated error triage: webhook → Claude CLI analysis → Linear issue.
 
 Lineu receives error alerts from monitoring tools (New Relic, Sentry, etc.), uses Claude CLI to analyze your codebase, and creates Linear issues with complete diagnosis including root cause, affected files, and fix suggestions.
 
-![Dashboard](reddit-screenshots/dashboard.png)
-
 ## How It Works
 
 1. **Receive** - Webhook accepts any JSON error payload
@@ -123,8 +121,6 @@ Features:
 - Claude session replay (see every tool call)
 - Analysis results with root cause and fix suggestions
 - Direct links to Linear issues
-
-![Session](reddit-screenshots/job-session.png)
 
 ## Webhook Payload
 
