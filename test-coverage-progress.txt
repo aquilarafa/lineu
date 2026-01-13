@@ -24,3 +24,8 @@
 - **Tested**: config.ts - loadConfig() throws when LINEAR_API_KEY missing
 - **Coverage**: 13.2% statements overall, config.ts at 70.37%
 - **Learning**: Users hit this on first setup. Required env isolation in test (save/restore process.env). Still uncovered: LINEU_REPO validation, teams type validation error, getDefaultConfigPath/getDefaultDatabasePath.
+
+## Iteration 6
+- **Tested**: config.ts - loadConfig() throws when repository path is missing
+- **Coverage**: 13.38% statements overall, config.ts at 74.07%
+- **Learning**: Common first-run error. Validates both override path and LINEU_REPO env are checked. Still uncovered: teams type validation, default config path not found (returns null), getDefaultConfigPath/getDefaultDatabasePath.
