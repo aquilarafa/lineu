@@ -29,4 +29,12 @@ teams:
 
     expect(teams).toEqual(['platform', 'backend', 'frontend']);
   });
+
+  it('throws clear error when explicit config path does not exist', () => {
+    const missingPath = path.join(testDir, 'nonexistent.yml');
+
+    expect(() => loadConfigFile(missingPath, true)).toThrow(
+      `Config file not found: ${missingPath}`
+    );
+  });
 });
