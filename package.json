@@ -10,7 +10,9 @@
   "scripts": {
     "build": "tsc && cp -r src/public dist/ && cp -r src/prompts dist/",
     "dev": "tsc --watch",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [
     "error-triage",
@@ -34,6 +36,8 @@
     "@types/better-sqlite3": "^7.0.0",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.0.0",
-    "typescript": "^5.0.0"
+    "@vitest/coverage-v8": "^4.0.17",
+    "typescript": "^5.0.0",
+    "vitest": "^4.0.17"
   }
 }
