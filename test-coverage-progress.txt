@@ -54,3 +54,8 @@
 - **Tested**: db.ts - markCompletedDryRun stores analysis without creating Linear issue
 - **Coverage**: 15.18% statements overall, db.ts at 88.63%
 - **Learning**: --dry-run is the recommended way to test lineu before going live. Analysis is preserved for review but no Linear issue is created. Still uncovered in db.ts: insertFingerprint standalone (line 221), getTimeline (line 230), markProcessing (line 205), migration branch (line 79).
+
+## Iteration 12
+- **Tested**: db.ts - getTimeline returns hourly aggregates for dashboard activity chart
+- **Coverage**: 15.37% statements overall, db.ts at 90.9%
+- **Learning**: Dashboard activity chart helps users visualize error volume patterns over time. Groups jobs by hour with totals, completed, and failed counts. Still uncovered in db.ts: insertFingerprint standalone (line 221), markProcessing (line 205), getPendingJobs (line 201), migration branch (line 79).
