@@ -14,3 +14,13 @@
 - **Tested**: db.ts - job lifecycle from insert → claim → complete with accurate stats
 - **Coverage**: 11.75% statements overall, db.ts at 70.45%
 - **Learning**: Database is the core job queue. Test covers insertJob, claimNextJob, markCompleted, getStats, getJob. Still uncovered: markFailed, markDuplicate, fingerprint operations, dashboard queries.
+
+## Iteration 4
+- **Tested**: config.ts - error when user provides explicit config path that doesn't exist
+- **Coverage**: 12.29% statements overall, config.ts at 51.85%
+- **Learning**: Users will hit this error when they typo a config path. The `isExplicit` flag differentiates user-provided paths (should error) from default paths (silently return null). Still uncovered: loadConfig() env var validation, teams type validation.
+
+## Iteration 5
+- **Tested**: config.ts - loadConfig() throws when LINEAR_API_KEY missing
+- **Coverage**: 13.2% statements overall, config.ts at 70.37%
+- **Learning**: Users hit this on first setup. Required env isolation in test (save/restore process.env). Still uncovered: LINEU_REPO validation, teams type validation error, getDefaultConfigPath/getDefaultDatabasePath.
