@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { loadConfigFile } from './config.js';
+import { loadConfigFile, loadConfig } from './config.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -35,6 +35,26 @@ teams:
 
     expect(() => loadConfigFile(missingPath, true)).toThrow(
       `Config file not found: ${missingPath}`
+    );
+  });
+});
+
+describe('loadConfig', () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    process.env = { ...originalEnv };
+    delete process.env.LINEAR_API_KEY;
+    delete process.env.LINEU_REPO;
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  it('throws clear error when LINEAR_API_KEY is missing', () => {
+    expect(() => loadConfig({ repo: { path: '/tmp/test-repo' } })).toThrow(
+      'LINEAR_API_KEY is required'
     );
   });
 });
