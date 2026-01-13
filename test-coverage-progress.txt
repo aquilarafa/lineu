@@ -4,3 +4,8 @@
 - **Tested**: fingerprint.ts - deduplication produces consistent hashes regardless of timestamps/requestIds
 - **Coverage**: 4.15% statements overall, fingerprint.ts at 85.18%
 - **Learning**: Set up vitest + v8 coverage. fingerprint has circular ref handler (line 16) and array edge case (line 32) still uncovered - minor internal branches.
+
+## Iteration 2
+- **Tested**: config.ts - loadConfigFile correctly parses YAML with teams array
+- **Coverage**: 6.14% statements overall, config.ts at 40.74%
+- **Learning**: Config loading is user-critical. Still uncovered: tilde expansion, missing file handling, invalid teams validation, loadConfig() with env vars.

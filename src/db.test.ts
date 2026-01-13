@@ -1,0 +1,62 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { createDatabase, LineuDatabase } from './db.js';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+
+describe('createDatabase', () => {
+  const testDir = path.join(os.tmpdir(), 'lineu-db-test-' + Date.now());
+  const testDbPath = path.join(testDir, 'test.db');
+  let db: LineuDatabase;
+
+  beforeEach(() => {
+    fs.mkdirSync(testDir, { recursive: true });
+    db = createDatabase(testDbPath);
+  });
+
+  afterEach(() => {
+    db.close();
+    fs.rmSync(testDir, { recursive: true, force: true });
+  });
+
+  it('tracks job lifecycle from insert through completion with accurate stats', () => {
+    // Start with empty stats
+    let stats = db.getStats();
+    expect(stats.total).toBe(0);
+    expect(stats.pending).toBe(0);
+
+    // Insert a job (user submits error via webhook)
+    const jobId = db.insertJob({ message: 'TypeError: undefined' }, 'abc123');
+    expect(jobId).toBe(1);
+
+    // Stats reflect pending job
+    stats = db.getStats();
+    expect(stats.total).toBe(1);
+    expect(stats.pending).toBe(1);
+    expect(stats.completed).toBe(0);
+
+    // Worker claims the job
+    const claimed = db.claimNextJob();
+    expect(claimed).toBeDefined();
+    expect(claimed!.id).toBe(jobId);
+    expect(claimed!.fingerprint).toBe('abc123');
+
+    // Job is now processing, not pending
+    stats = db.getStats();
+    expect(stats.pending).toBe(0);
+
+    // Worker completes the job
+    db.markCompleted(jobId, 'issue-123', 'TEAM-1', '{"summary":"Fixed"}');
+
+    // Final stats show completion
+    stats = db.getStats();
+    expect(stats.total).toBe(1);
+    expect(stats.completed).toBe(1);
+    expect(stats.pending).toBe(0);
+
+    // Job details are retrievable
+    const job = db.getJob(jobId);
+    expect(job?.status).toBe('completed');
+    expect(job?.linear_identifier).toBe('TEAM-1');
+  });
+});
