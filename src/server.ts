@@ -26,6 +26,24 @@ export async function createServer(
       ? externalFingerprint
       : generateFingerprint(payload);
 
+    // Check for duplicates before inserting
+    const existing = db.findExistingByFingerprint(fingerprint, config.deduplication.windowDays);
+    if (existing) {
+      if (existing.type === 'completed') {
+        return reply.status(200).send({
+          status: 'duplicate',
+          fingerprint,
+          existingIssue: existing.linear_identifier,
+        });
+      } else {
+        return reply.status(200).send({
+          status: 'duplicate',
+          fingerprint,
+          existingJobId: existing.jobId,
+        });
+      }
+    }
+
     const jobId = db.insertJob(payload, fingerprint);
 
     return reply.status(202).send({

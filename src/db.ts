@@ -44,6 +44,7 @@ export interface LineuDatabase {
 
   // Fingerprints
   findFingerprint: (hash: string, windowDays: number) => { linear_identifier: string } | undefined;
+  findExistingByFingerprint: (hash: string, windowDays: number) => { type: 'job' | 'completed'; jobId?: number; linear_identifier?: string } | undefined;
   insertFingerprint: (hash: string, linearIssueId: string, linearIdentifier: string) => void;
 
   // Atomic operations
@@ -132,6 +133,14 @@ export function createDatabase(dbPath: string): LineuDatabase {
     WHERE hash = ? AND created_at > datetime('now', '-' || ? || ' days')
   `);
 
+  const findPendingJobByFingerprintStmt = db.prepare(`
+    SELECT id FROM jobs
+    WHERE fingerprint = ? AND status IN ('pending', 'processing')
+    AND created_at > datetime('now', '-' || ? || ' days')
+    ORDER BY created_at ASC
+    LIMIT 1
+  `);
+
   const insertFingerprintStmt = db.prepare(`
     INSERT OR IGNORE INTO fingerprints (hash, linear_issue_id, linear_identifier)
     VALUES (?, ?, ?)
@@ -216,6 +225,20 @@ export function createDatabase(dbPath: string): LineuDatabase {
 
     findFingerprint: (hash, windowDays) =>
       findFingerprintStmt.get(hash, windowDays) as { linear_identifier: string } | undefined,
+
+    findExistingByFingerprint: (hash, windowDays) => {
+      // First check if there's already a completed fingerprint
+      const completed = findFingerprintStmt.get(hash, windowDays) as { linear_identifier: string } | undefined;
+      if (completed) {
+        return { type: 'completed', linear_identifier: completed.linear_identifier };
+      }
+      // Then check for pending/processing jobs
+      const pending = findPendingJobByFingerprintStmt.get(hash, windowDays) as { id: number } | undefined;
+      if (pending) {
+        return { type: 'job', jobId: pending.id };
+      }
+      return undefined;
+    },
 
     insertFingerprint: (hash, linearIssueId, linearIdentifier) =>
       insertFingerprintStmt.run(hash, linearIssueId, linearIdentifier),
