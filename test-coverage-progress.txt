@@ -34,3 +34,8 @@
 - **Tested**: config.ts - loadConfigFile() throws when teams array contains non-string values
 - **Coverage**: 13.74% statements overall, config.ts at 81.48%
 - **Learning**: Users editing config.yml may accidentally use numbers or other types. This validates the typed teams array. Still uncovered: getDefaultConfigPath/getDefaultDatabasePath (minor utilities), default config not found path (returns null silently).
+
+## Iteration 8
+- **Tested**: db.ts - markFailed() records error message for user debugging
+- **Coverage**: 13.92% statements overall, db.ts at 72.72%
+- **Learning**: When Claude analysis fails (timeout, API error), users need to see why via `lineu stats` or job lookup. Error message and processed_at are preserved. Still uncovered in db.ts: markDuplicate, fingerprint operations, dashboard queries.
