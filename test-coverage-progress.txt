@@ -1,0 +1,6 @@
+# Test Coverage Progress
+
+## Iteration 1
+- **Tested**: fingerprint.ts - deduplication produces consistent hashes regardless of timestamps/requestIds
+- **Coverage**: 4.15% statements overall, fingerprint.ts at 85.18%
+- **Learning**: Set up vitest + v8 coverage. fingerprint has circular ref handler (line 16) and array edge case (line 32) still uncovered - minor internal branches.

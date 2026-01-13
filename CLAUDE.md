@@ -23,9 +23,11 @@ src/
 ## Development
 
 ```bash
-npm install       # Install dependencies
-npm run build     # Compile TypeScript
-npm run dev       # Development mode
+npm install            # Install dependencies
+npm run build          # Compile TypeScript
+npm run dev            # Development mode
+npm test               # Run tests
+npm run test:coverage  # Run tests with coverage
 ```
 
 ## Environment Variables
