@@ -57,4 +57,12 @@ describe('loadConfig', () => {
       'LINEAR_API_KEY is required'
     );
   });
+
+  it('throws clear error when repository path is missing', () => {
+    process.env.LINEAR_API_KEY = 'test-key';
+
+    expect(() => loadConfig()).toThrow(
+      'Repository path is required. Use --repo or set LINEU_REPO'
+    );
+  });
 });
