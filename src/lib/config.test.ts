@@ -37,6 +37,20 @@ teams:
       `Config file not found: ${missingPath}`
     );
   });
+
+  it('throws clear error when teams contains non-string values', () => {
+    const configContent = `
+teams:
+  - platform
+  - 123
+  - backend
+`;
+    fs.writeFileSync(testConfigPath, configContent);
+
+    expect(() => loadConfigFile(testConfigPath)).toThrow(
+      'teams must be an array of strings'
+    );
+  });
 });
 
 describe('loadConfig', () => {
