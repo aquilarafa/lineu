@@ -49,3 +49,8 @@
 - **Tested**: db.ts - getRecentJobs returns job history for dashboard with processing duration
 - **Coverage**: 15% statements overall, db.ts at 86.36%
 - **Learning**: Dashboard is how users monitor job status. Test validates jobs in different states (pending/completed/failed) show correct fields. Still uncovered in db.ts: markCompletedDryRun (line 211), insertFingerprint standalone (line 221), getTimeline (line 230), markProcessing (line 205).
+
+## Iteration 11
+- **Tested**: db.ts - markCompletedDryRun stores analysis without creating Linear issue
+- **Coverage**: 15.18% statements overall, db.ts at 88.63%
+- **Learning**: --dry-run is the recommended way to test lineu before going live. Analysis is preserved for review but no Linear issue is created. Still uncovered in db.ts: insertFingerprint standalone (line 221), getTimeline (line 230), markProcessing (line 205), migration branch (line 79).
