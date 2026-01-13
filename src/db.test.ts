@@ -85,4 +85,35 @@ describe('createDatabase', () => {
     expect(job?.error).toBe(errorMessage);
     expect(job?.processed_at).toBeDefined();
   });
+
+  it('deduplicates repeat errors by fingerprint to avoid duplicate Linear issues', () => {
+    const fingerprint = 'same-error-hash';
+
+    // First occurrence: insert job and complete with fingerprint
+    const firstJobId = db.insertJob({ message: 'TypeError at line 42' }, fingerprint);
+    db.claimNextJob();
+    db.completeJobWithFingerprint(firstJobId, fingerprint, 'issue-abc', 'TEAM-99', '{"root_cause":"null ref"}');
+
+    // Verify fingerprint is stored
+    const found = db.findFingerprint(fingerprint, 7);
+    expect(found).toBeDefined();
+    expect(found!.linear_identifier).toBe('TEAM-99');
+
+    // Second occurrence: same error comes in again
+    const secondJobId = db.insertJob({ message: 'TypeError at line 42' }, fingerprint);
+    db.claimNextJob();
+
+    // Worker finds existing fingerprint, marks as duplicate
+    db.markDuplicate(secondJobId, 'TEAM-99');
+
+    // Stats show 1 completed, 1 duplicate (no new Linear issue created)
+    const stats = db.getStats();
+    expect(stats.completed).toBe(1);
+    expect(stats.duplicate).toBe(1);
+
+    // Second job links to original Linear issue
+    const job = db.getJob(secondJobId);
+    expect(job?.status).toBe('duplicate');
+    expect(job?.linear_identifier).toBe('TEAM-99');
+  });
 });
