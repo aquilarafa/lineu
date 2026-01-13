@@ -44,3 +44,8 @@
 - **Tested**: db.ts - deduplication via completeJobWithFingerprint, findFingerprint, and markDuplicate
 - **Coverage**: 14.82% statements overall, db.ts at 84.09%
 - **Learning**: Core user feature - prevents duplicate Linear issues when same error occurs repeatedly. Tests the atomic transaction (completeJobWithFingerprint) and lookup (findFingerprint). Still uncovered: markCompletedDryRun, insertFingerprint (standalone), dashboard queries (getRecentJobs, getTimeline).
+
+## Iteration 10
+- **Tested**: db.ts - getRecentJobs returns job history for dashboard with processing duration
+- **Coverage**: 15% statements overall, db.ts at 86.36%
+- **Learning**: Dashboard is how users monitor job status. Test validates jobs in different states (pending/completed/failed) show correct fields. Still uncovered in db.ts: markCompletedDryRun (line 211), insertFingerprint standalone (line 221), getTimeline (line 230), markProcessing (line 205).
