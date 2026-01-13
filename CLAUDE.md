@@ -50,3 +50,4 @@ lineu stats                         # View job statistics
 - [docs/cli-usage.md](docs/cli-usage.md) - All command details
 - [docs/configuration.md](docs/configuration.md) - Configuration and environment variables
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) - Docker deployment
+- [plans/](plans/) - Feature plans and implementation specs
