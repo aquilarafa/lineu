@@ -3,12 +3,13 @@ import yaml from 'js-yaml';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import type { LineuConfig } from '../types.js';
+import type { LineuConfig, ConfigFileResult } from '../types.js';
 
 loadDotenv();
 
 interface ConfigFile {
   teams?: string[];
+  prefix?: string;
 }
 
 export function getDefaultConfigPath(): string {
@@ -19,7 +20,7 @@ export function getDefaultDatabasePath(): string {
   return path.join(os.homedir(), '.lineu', 'lineu.db');
 }
 
-export function loadConfigFile(configPath?: string, isExplicit = false): string[] | null {
+export function loadConfigFile(configPath?: string, isExplicit = false): ConfigFileResult | null {
   const filePath = configPath || getDefaultConfigPath();
   const expandedPath = filePath.startsWith('~/')
     ? path.join(os.homedir(), filePath.slice(2))
@@ -32,7 +33,10 @@ export function loadConfigFile(configPath?: string, isExplicit = false): string[
     if (parsed?.teams && Array.isArray(parsed.teams)) {
       if (parsed.teams.every(t => typeof t === 'string')) {
         console.log(`[Config] Loaded from ${expandedPath}`);
-        return parsed.teams;
+        return {
+          teams: parsed.teams,
+          prefix: typeof parsed.prefix === 'string' ? parsed.prefix : undefined,
+        };
       }
       throw new Error('teams must be an array of strings');
     }

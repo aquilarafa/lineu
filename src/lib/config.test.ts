@@ -25,9 +25,42 @@ teams:
 `;
     fs.writeFileSync(testConfigPath, configContent);
 
-    const teams = loadConfigFile(testConfigPath);
+    const result = loadConfigFile(testConfigPath);
 
-    expect(teams).toEqual(['platform', 'backend', 'frontend']);
+    expect(result).toEqual({
+      teams: ['platform', 'backend', 'frontend'],
+      prefix: undefined,
+    });
+  });
+
+  it('parses config with prefix option', () => {
+    const configContent = `
+prefix: "LINEU"
+teams:
+  - platform
+  - backend
+`;
+    fs.writeFileSync(testConfigPath, configContent);
+
+    const result = loadConfigFile(testConfigPath);
+
+    expect(result).toEqual({
+      teams: ['platform', 'backend'],
+      prefix: 'LINEU',
+    });
+  });
+
+  it('handles config without prefix', () => {
+    const configContent = `
+teams:
+  - platform
+`;
+    fs.writeFileSync(testConfigPath, configContent);
+
+    const result = loadConfigFile(testConfigPath);
+
+    expect(result?.prefix).toBeUndefined();
+    expect(result?.teams).toEqual(['platform']);
   });
 
   it('throws clear error when explicit config path does not exist', () => {

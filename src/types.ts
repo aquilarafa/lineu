@@ -133,3 +133,8 @@ export interface TeamInfo {
   key: string;
   name: string;
 }
+
+export interface ConfigFileResult {
+  teams: string[];
+  prefix?: string;
+}

@@ -5,6 +5,7 @@ export class LinearService {
   private client: LinearClient;
   private teams: Map<string, TeamInfo> = new Map();
   private allowedTeamKeys: Set<string> | null = null;
+  private prefix: string | null = null;
 
   constructor(config: { apiKey: string }) {
     this.client = new LinearClient({ apiKey: config.apiKey });
@@ -13,6 +14,13 @@ export class LinearService {
   setAllowedTeams(keys: string[]): void {
     this.allowedTeamKeys = new Set(keys);
     console.log(`[Linear] Filtering to teams: ${keys.join(', ')}`);
+  }
+
+  setPrefix(prefix: string | null): void {
+    this.prefix = prefix;
+    if (prefix) {
+      console.log(`[Linear] Issue prefix set to: ${prefix}`);
+    }
   }
 
   async fetchTeams(): Promise<{ success: boolean; count: number }> {
@@ -85,9 +93,12 @@ export class LinearService {
       low: 4,
     };
 
+    const baseTitle = `[${analysis.category.toUpperCase()}] ${analysis.summary}`;
+    const title = this.prefix ? `${this.prefix}: ${baseTitle}` : baseTitle;
+
     const result = await this.client.createIssue({
       teamId,
-      title: `[${analysis.category.toUpperCase()}] ${analysis.summary}`,
+      title,
       description: this.buildDescription(payload, analysis, fingerprint),
       priority: priorityMap[analysis.priority],
     });

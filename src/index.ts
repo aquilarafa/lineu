@@ -45,10 +45,11 @@ program
     const claude = new ClaudeService(config.claude);
     const linear = new LinearService(config.linear);
 
-    // Load config file and set allowed teams
-    const allowedTeams = loadConfigFile(opts.config, !!opts.config);
-    if (allowedTeams) {
-      linear.setAllowedTeams(allowedTeams);
+    // Load config file and set allowed teams and prefix
+    const configResult = loadConfigFile(opts.config, !!opts.config);
+    if (configResult) {
+      linear.setAllowedTeams(configResult.teams);
+      linear.setPrefix(configResult.prefix || null);
     }
 
     // Fetch teams at startup
@@ -122,10 +123,11 @@ program
     // Fetch teams for routing
     const linear = new LinearService(config.linear);
 
-    // Load config file and set allowed teams
-    const allowedTeams = loadConfigFile(opts.config, !!opts.config);
-    if (allowedTeams) {
-      linear.setAllowedTeams(allowedTeams);
+    // Load config file and set allowed teams and prefix
+    const configResult = loadConfigFile(opts.config, !!opts.config);
+    if (configResult) {
+      linear.setAllowedTeams(configResult.teams);
+      linear.setPrefix(configResult.prefix || null);
     }
 
     const teamResult = await linear.fetchTeams();
