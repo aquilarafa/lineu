@@ -30,9 +30,15 @@ CREATE TABLE IF NOT EXISTS fingerprints (
 );
 `;
 
+export type InsertJobResult =
+  | { status: 'inserted'; jobId: number }
+  | { status: 'duplicate_job'; jobId: number }
+  | { status: 'duplicate_completed'; linear_identifier: string };
+
 export interface LineuDatabase {
   // Jobs
   insertJob: (payload: Record<string, unknown>, fingerprint: string) => number;
+  insertJobIfNotDuplicate: (payload: Record<string, unknown>, fingerprint: string, windowDays: number) => InsertJobResult;
   getJob: (id: number) => Job | undefined;
   getPendingJobs: (limit: number) => Job[];
   claimNextJob: () => ClaimedJob | undefined;
@@ -158,6 +164,27 @@ export function createDatabase(dbPath: string): LineuDatabase {
     markCompletedStmt.run(linearIssueId, linearIdentifier, analysis, jobId);
   });
 
+  // Atomic transaction: check for duplicate and insert if not found
+  const insertJobIfNotDuplicateTx = db.transaction((
+    payload: string,
+    fingerprint: string,
+    windowDays: number
+  ): InsertJobResult => {
+    // Check completed fingerprints first
+    const completed = findFingerprintStmt.get(fingerprint, windowDays) as { linear_identifier: string } | undefined;
+    if (completed) {
+      return { status: 'duplicate_completed', linear_identifier: completed.linear_identifier };
+    }
+    // Check pending/processing jobs
+    const pending = findPendingJobByFingerprintStmt.get(fingerprint, windowDays) as { id: number } | undefined;
+    if (pending) {
+      return { status: 'duplicate_job', jobId: pending.id };
+    }
+    // No duplicate found, insert
+    const result = insertJobStmt.run(payload, fingerprint);
+    return { status: 'inserted', jobId: Number(result.lastInsertRowid) };
+  });
+
   const getStatsStmt = db.prepare(`
     SELECT
       COUNT(*) as total,
@@ -203,6 +230,10 @@ export function createDatabase(dbPath: string): LineuDatabase {
     insertJob: (payload, fingerprint) => {
       const result = insertJobStmt.run(JSON.stringify(payload), fingerprint);
       return Number(result.lastInsertRowid);
+    },
+
+    insertJobIfNotDuplicate: (payload, fingerprint, windowDays) => {
+      return insertJobIfNotDuplicateTx(JSON.stringify(payload), fingerprint, windowDays);
     },
 
     getJob: (id) => getJobStmt.get(id) as Job | undefined,

@@ -26,29 +26,28 @@ export async function createServer(
       ? externalFingerprint
       : generateFingerprint(payload);
 
-    // Check for duplicates before inserting
-    const existing = db.findExistingByFingerprint(fingerprint, config.deduplication.windowDays);
-    if (existing) {
-      if (existing.type === 'completed') {
-        return reply.status(200).send({
-          status: 'duplicate',
-          fingerprint,
-          existingIssue: existing.linear_identifier,
-        });
-      } else {
-        return reply.status(200).send({
-          status: 'duplicate',
-          fingerprint,
-          existingJobId: existing.jobId,
-        });
-      }
+    // Atomic check-and-insert to prevent race conditions
+    const result = db.insertJobIfNotDuplicate(payload, fingerprint, config.deduplication.windowDays);
+
+    if (result.status === 'duplicate_completed') {
+      return reply.status(200).send({
+        status: 'duplicate',
+        fingerprint,
+        existingIssue: result.linear_identifier,
+      });
     }
 
-    const jobId = db.insertJob(payload, fingerprint);
+    if (result.status === 'duplicate_job') {
+      return reply.status(200).send({
+        status: 'duplicate',
+        fingerprint,
+        existingJobId: result.jobId,
+      });
+    }
 
     return reply.status(202).send({
       status: 'queued',
-      jobId,
+      jobId: result.jobId,
       fingerprint,
     });
   });
