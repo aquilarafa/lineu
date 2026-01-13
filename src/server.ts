@@ -29,19 +29,12 @@ export async function createServer(
     // Atomic check-and-insert to prevent race conditions
     const result = db.insertJobIfNotDuplicate(payload, fingerprint, config.deduplication.windowDays);
 
-    if (result.status === 'duplicate_completed') {
+    if (result.status === 'duplicate') {
       return reply.status(200).send({
         status: 'duplicate',
+        jobId: result.jobId,
         fingerprint,
-        existingIssue: result.linear_identifier,
-      });
-    }
-
-    if (result.status === 'duplicate_job') {
-      return reply.status(200).send({
-        status: 'duplicate',
-        fingerprint,
-        existingJobId: result.jobId,
+        ...(result.linear_identifier && { existingIssue: result.linear_identifier }),
       });
     }
 

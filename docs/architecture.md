@@ -116,26 +116,17 @@ You can optionally provide your own fingerprint for deduplication by including a
 }
 ```
 
-**Response (duplicate - pending job exists):**
+**Response (duplicate):**
 
 ```json
 {
   "status": "duplicate",
-  "fingerprint": "custom-error-id",
-  "existingJobId": 1
-}
-```
-
-**Response (duplicate - Linear issue exists):**
-
-```json
-{
-  "status": "duplicate",
+  "jobId": 2,
   "fingerprint": "custom-error-id",
   "existingIssue": "TEAM-123"
 }
 ```
 
-Deduplication happens at webhook time - if a job with the same fingerprint is already pending/processing, or if a Linear issue was already created for that fingerprint within the deduplication window, the request returns `200` with `status: "duplicate"` instead of creating a new job.
+When a duplicate fingerprint is detected, a job is still created but with `status: "duplicate"` immediately. This ensures all incoming webhooks are recorded. The `existingIssue` field is included when a Linear issue already exists for that fingerprint.
 
 This is useful when your error source (e.g., Sentry, New Relic) already provides a stable identifier for grouping errors.

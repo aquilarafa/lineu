@@ -32,8 +32,7 @@ CREATE TABLE IF NOT EXISTS fingerprints (
 
 export type InsertJobResult =
   | { status: 'inserted'; jobId: number }
-  | { status: 'duplicate_job'; jobId: number }
-  | { status: 'duplicate_completed'; linear_identifier: string };
+  | { status: 'duplicate'; jobId: number; linear_identifier?: string };
 
 export interface LineuDatabase {
   // Jobs
@@ -88,6 +87,11 @@ export function createDatabase(dbPath: string): LineuDatabase {
 
   const insertJobStmt = db.prepare(`
     INSERT INTO jobs (payload, fingerprint) VALUES (?, ?)
+  `);
+
+  const insertDuplicateJobStmt = db.prepare(`
+    INSERT INTO jobs (payload, fingerprint, status, linear_identifier, processed_at)
+    VALUES (?, ?, 'duplicate', ?, CURRENT_TIMESTAMP)
   `);
 
   const getJobStmt = db.prepare(`
@@ -164,7 +168,7 @@ export function createDatabase(dbPath: string): LineuDatabase {
     markCompletedStmt.run(linearIssueId, linearIdentifier, analysis, jobId);
   });
 
-  // Atomic transaction: check for duplicate and insert if not found
+  // Atomic transaction: check for duplicate and insert appropriately
   const insertJobIfNotDuplicateTx = db.transaction((
     payload: string,
     fingerprint: string,
@@ -173,14 +177,18 @@ export function createDatabase(dbPath: string): LineuDatabase {
     // Check completed fingerprints first
     const completed = findFingerprintStmt.get(fingerprint, windowDays) as { linear_identifier: string } | undefined;
     if (completed) {
-      return { status: 'duplicate_completed', linear_identifier: completed.linear_identifier };
+      // Insert as duplicate, linking to existing Linear issue
+      const result = insertDuplicateJobStmt.run(payload, fingerprint, completed.linear_identifier);
+      return { status: 'duplicate', jobId: Number(result.lastInsertRowid), linear_identifier: completed.linear_identifier };
     }
     // Check pending/processing jobs
     const pending = findPendingJobByFingerprintStmt.get(fingerprint, windowDays) as { id: number } | undefined;
     if (pending) {
-      return { status: 'duplicate_job', jobId: pending.id };
+      // Insert as duplicate, no Linear issue yet
+      const result = insertDuplicateJobStmt.run(payload, fingerprint, null);
+      return { status: 'duplicate', jobId: Number(result.lastInsertRowid) };
     }
-    // No duplicate found, insert
+    // No duplicate found, insert as pending
     const result = insertJobStmt.run(payload, fingerprint);
     return { status: 'inserted', jobId: Number(result.lastInsertRowid) };
   });

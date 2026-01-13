@@ -129,8 +129,8 @@ describe('POST /webhook with external fingerprint', () => {
     expect(body.fingerprint).toHaveLength(32);
   });
 
-  it('rejects duplicate fingerprint when job is pending', async () => {
-    // First request creates a job
+  it('creates duplicate job when fingerprint is pending', async () => {
+    // First request creates a pending job
     const response1 = await app.inject({
       method: 'POST',
       url: '/webhook',
@@ -145,7 +145,7 @@ describe('POST /webhook with external fingerprint', () => {
     expect(body1.status).toBe('queued');
     expect(body1.fingerprint).toBe('dup-test');
 
-    // Second request with same fingerprint is rejected as duplicate
+    // Second request with same fingerprint creates a duplicate job
     const response2 = await app.inject({
       method: 'POST',
       url: '/webhook',
@@ -159,16 +159,21 @@ describe('POST /webhook with external fingerprint', () => {
     const body2 = JSON.parse(response2.body);
     expect(body2.status).toBe('duplicate');
     expect(body2.fingerprint).toBe('dup-test');
-    expect(body2.existingJobId).toBe(body1.jobId);
+    expect(body2.jobId).toBeDefined();
+    expect(body2.jobId).not.toBe(body1.jobId); // New job was created
+
+    // Verify the duplicate job exists in DB with correct status
+    const duplicateJob = db.getJob(body2.jobId);
+    expect(duplicateJob?.status).toBe('duplicate');
   });
 
-  it('rejects duplicate fingerprint when already completed', async () => {
+  it('creates duplicate job when fingerprint already completed', async () => {
     const fingerprint = 'completed-dup-test';
 
     // Simulate a completed job by inserting fingerprint directly
     db.insertFingerprint(fingerprint, 'issue-123', 'TEAM-1');
 
-    // Request with same fingerprint is rejected
+    // Request with same fingerprint creates a duplicate job
     const response = await app.inject({
       method: 'POST',
       url: '/webhook',
@@ -182,7 +187,13 @@ describe('POST /webhook with external fingerprint', () => {
     const body = JSON.parse(response.body);
     expect(body.status).toBe('duplicate');
     expect(body.fingerprint).toBe(fingerprint);
+    expect(body.jobId).toBeDefined();
     expect(body.existingIssue).toBe('TEAM-1');
+
+    // Verify the duplicate job exists in DB with correct status and linked issue
+    const duplicateJob = db.getJob(body.jobId);
+    expect(duplicateJob?.status).toBe('duplicate');
+    expect(duplicateJob?.linear_identifier).toBe('TEAM-1');
   });
 
   it('allows different fingerprints', async () => {
