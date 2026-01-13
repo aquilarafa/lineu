@@ -59,4 +59,30 @@ describe('createDatabase', () => {
     expect(job?.status).toBe('completed');
     expect(job?.linear_identifier).toBe('TEAM-1');
   });
+
+  it('records failed jobs with error message for user debugging', () => {
+    // Insert a job
+    const jobId = db.insertJob({ message: 'Error in production' }, 'fail-hash');
+
+    // Worker claims it
+    const claimed = db.claimNextJob();
+    expect(claimed).toBeDefined();
+
+    // Analysis fails (e.g., Claude timeout, API error)
+    const errorMessage = 'Claude CLI timed out after 300s';
+    db.markFailed(jobId, errorMessage);
+
+    // Stats reflect the failure
+    const stats = db.getStats();
+    expect(stats.total).toBe(1);
+    expect(stats.failed).toBe(1);
+    expect(stats.completed).toBe(0);
+    expect(stats.pending).toBe(0);
+
+    // Error message is preserved for debugging
+    const job = db.getJob(jobId);
+    expect(job?.status).toBe('failed');
+    expect(job?.error).toBe(errorMessage);
+    expect(job?.processed_at).toBeDefined();
+  });
 });
