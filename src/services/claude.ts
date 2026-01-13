@@ -99,6 +99,7 @@ export class ClaudeService {
       let fullOutput = '';
       let lastResult: unknown = null;
       const toolMap = new Map<string, string>(); // tool_use_id -> tool name
+      let lineBuffer = ''; // Buffer for incomplete lines across chunks
 
       proc.stdout.on('data', (data) => {
         const chunk = data.toString();
@@ -110,9 +111,17 @@ export class ClaudeService {
         // Also print to console for real-time visibility
         process.stdout.write(chunk);
 
-        // Try to parse stream-json events and log structured events
-        const lines = chunk.split('\n').filter((l: string) => l.trim());
-        for (const line of lines) {
+        // Buffer incomplete lines: prepend any leftover from previous chunk
+        const combined = lineBuffer + chunk;
+        const parts = combined.split('\n');
+
+        // Last part may be incomplete (no trailing newline), save for next chunk
+        lineBuffer = parts.pop() || '';
+
+        // Process complete lines
+        for (const line of parts) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
           try {
             const event = JSON.parse(line);
             const ts = new Date().toISOString();
@@ -176,6 +185,18 @@ export class ClaudeService {
       proc.on('close', (code) => {
         if (timeoutId) clearTimeout(timeoutId);
 
+        // Process any remaining content in the line buffer
+        if (lineBuffer.trim()) {
+          try {
+            const event = JSON.parse(lineBuffer);
+            if (event.type === 'result') {
+              lastResult = event;
+            }
+          } catch {
+            // Not valid JSON, ignore
+          }
+        }
+
         logEvent({ ts: new Date().toISOString(), type: 'result', duration_ms: Date.now() - startTime });
         logStream.write(`\n=== Claude exited with code ${code} ===\n`);
         logStream.end();
@@ -232,7 +253,25 @@ export class ClaudeService {
       }
     }
 
-    // Fallback: try to find JSON in full output
+    // Fallback: parse NDJSON lines to find result event
+    // This handles cases where streaming didn't capture lastResult
+    const lines = fullOutput.split('\n');
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      try {
+        const event = JSON.parse(line);
+        if (event.type === 'result' && event.result) {
+          if (typeof event.result === 'string') {
+            return this.extractJsonFromText(event.result);
+          }
+        }
+      } catch {
+        // Not valid JSON, continue
+      }
+    }
+
+    // Last resort: try to find JSON in raw output (may fail due to escaping)
     return this.extractJsonFromText(fullOutput);
   }
 
@@ -304,4 +343,135 @@ export class ClaudeService {
 
     throw new Error('Unbalanced JSON in output');
   }
+}
+
+// Exported for testing - simulates line buffering across chunks
+export function processChunksWithLineBuffering(chunks: string[]): { lines: string[]; lastResult: unknown } {
+  let lineBuffer = '';
+  let lastResult: unknown = null;
+  const allLines: string[] = [];
+
+  for (const chunk of chunks) {
+    const combined = lineBuffer + chunk;
+    const parts = combined.split('\n');
+    lineBuffer = parts.pop() || '';
+
+    for (const line of parts) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      allLines.push(trimmed);
+      try {
+        const event = JSON.parse(trimmed);
+        if (event.type === 'result') {
+          lastResult = event;
+        }
+      } catch {
+        // Not JSON, ignore
+      }
+    }
+  }
+
+  // Process remaining buffer
+  if (lineBuffer.trim()) {
+    allLines.push(lineBuffer.trim());
+    try {
+      const event = JSON.parse(lineBuffer);
+      if (event.type === 'result') {
+        lastResult = event;
+      }
+    } catch {
+      // Not valid JSON
+    }
+  }
+
+  return { lines: allLines, lastResult };
+}
+
+// Exported for testing - extracts JSON from text (markdown blocks or raw)
+export function extractJsonFromText(text: string): ClaudeAnalysis {
+  // Try to find JSON block in markdown
+  const jsonBlockMatches = text.matchAll(/```json\s*([\s\S]*?)```/g);
+  for (const match of jsonBlockMatches) {
+    try {
+      const parsed = JSON.parse(match[1].trim());
+      if (parsed.category && parsed.summary) {
+        return parsed;
+      }
+    } catch {
+      // Continue to next match
+    }
+  }
+
+  // Try to find balanced JSON object
+  const patterns = ['{\n  "category"', '{"category"', '{ "category"'];
+  for (const pattern of patterns) {
+    const startIdx = text.indexOf(pattern);
+    if (startIdx !== -1) {
+      try {
+        return extractBalancedJson(text, startIdx);
+      } catch {
+        // Continue to next pattern
+      }
+    }
+  }
+
+  throw new Error('No valid JSON analysis found in output');
+}
+
+// Exported for testing - parses NDJSON to find result event
+export function parseNdjsonForResult(fullOutput: string): ClaudeAnalysis | null {
+  const lines = fullOutput.split('\n');
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    try {
+      const event = JSON.parse(line);
+      if (event.type === 'result' && event.result) {
+        if (typeof event.result === 'string') {
+          return extractJsonFromText(event.result);
+        }
+      }
+    } catch {
+      // Not valid JSON, continue
+    }
+  }
+  return null;
+}
+
+function extractBalancedJson(text: string, startIdx: number): ClaudeAnalysis {
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = startIdx; i < text.length; i++) {
+    const char = text[i];
+
+    if (escape) {
+      escape = false;
+      continue;
+    }
+
+    if (char === '\\' && inString) {
+      escape = true;
+      continue;
+    }
+
+    if (char === '"' && !escape) {
+      inString = !inString;
+      continue;
+    }
+
+    if (!inString) {
+      if (char === '{') depth++;
+      if (char === '}') {
+        depth--;
+        if (depth === 0) {
+          const jsonStr = text.slice(startIdx, i + 1);
+          return JSON.parse(jsonStr);
+        }
+      }
+    }
+  }
+
+  throw new Error('Unbalanced JSON in output');
 }
