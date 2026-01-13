@@ -39,3 +39,8 @@
 - **Tested**: db.ts - markFailed() records error message for user debugging
 - **Coverage**: 13.92% statements overall, db.ts at 72.72%
 - **Learning**: When Claude analysis fails (timeout, API error), users need to see why via `lineu stats` or job lookup. Error message and processed_at are preserved. Still uncovered in db.ts: markDuplicate, fingerprint operations, dashboard queries.
+
+## Iteration 9
+- **Tested**: db.ts - deduplication via completeJobWithFingerprint, findFingerprint, and markDuplicate
+- **Coverage**: 14.82% statements overall, db.ts at 84.09%
+- **Learning**: Core user feature - prevents duplicate Linear issues when same error occurs repeatedly. Tests the atomic transaction (completeJobWithFingerprint) and lookup (findFingerprint). Still uncovered: markCompletedDryRun, insertFingerprint (standalone), dashboard queries (getRecentJobs, getTimeline).
