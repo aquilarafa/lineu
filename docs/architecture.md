@@ -76,3 +76,44 @@
 | GET | `/health` | Health check |
 | GET | `/stats` | Job statistics |
 | GET | `/dashboard` | Web dashboard (requires authentication) |
+
+## Webhook Payload
+
+The `/webhook` endpoint accepts any valid JSON payload. Lineu generates a fingerprint for deduplication based on the payload content (ignoring dynamic fields like timestamps and IDs).
+
+### External Fingerprint
+
+You can optionally provide your own fingerprint for deduplication by including a `fingerprint` field in the payload:
+
+```json
+{
+  "fingerprint": "custom-error-id",
+  "error": "TypeError",
+  "message": "Cannot read property 'id' of undefined",
+  "stack": "..."
+}
+```
+
+**Validation rules:**
+
+| Value | Behavior |
+|-------|----------|
+| `"abc123"` | Uses external fingerprint |
+| `"custom-error-id"` | Uses external fingerprint |
+| `null` | Generates automatically |
+| `undefined` / absent | Generates automatically |
+| `""` (empty string) | Generates automatically |
+| `"   "` (whitespace only) | Generates automatically |
+| `0` (zero) | Generates automatically |
+
+**Response:**
+
+```json
+{
+  "status": "queued",
+  "jobId": 1,
+  "fingerprint": "custom-error-id"
+}
+```
+
+This is useful when your error source (e.g., Sentry, New Relic) already provides a stable identifier for grouping errors.

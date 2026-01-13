@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateFingerprint } from './fingerprint.js';
+import { generateFingerprint, isValidExternalFingerprint } from './fingerprint.js';
 
 describe('generateFingerprint', () => {
   it('produces consistent fingerprints for equivalent errors with different timestamps', () => {
@@ -44,5 +44,34 @@ describe('generateFingerprint', () => {
     const fingerprint2 = generateFingerprint(error2);
 
     expect(fingerprint1).not.toBe(fingerprint2);
+  });
+});
+
+describe('isValidExternalFingerprint', () => {
+  it('returns true for valid string fingerprints', () => {
+    expect(isValidExternalFingerprint('abc123')).toBe(true);
+    expect(isValidExternalFingerprint('custom-error-id')).toBe(true);
+    expect(isValidExternalFingerprint('a')).toBe(true);
+  });
+
+  it('returns false for null and undefined', () => {
+    expect(isValidExternalFingerprint(null)).toBe(false);
+    expect(isValidExternalFingerprint(undefined)).toBe(false);
+  });
+
+  it('returns false for empty and whitespace-only strings', () => {
+    expect(isValidExternalFingerprint('')).toBe(false);
+    expect(isValidExternalFingerprint('   ')).toBe(false);
+    expect(isValidExternalFingerprint('\t\n')).toBe(false);
+  });
+
+  it('returns false for zero', () => {
+    expect(isValidExternalFingerprint(0)).toBe(false);
+  });
+
+  it('returns false for non-string types', () => {
+    expect(isValidExternalFingerprint(123)).toBe(false);
+    expect(isValidExternalFingerprint({})).toBe(false);
+    expect(isValidExternalFingerprint([])).toBe(false);
   });
 });

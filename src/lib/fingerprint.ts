@@ -1,5 +1,17 @@
 import crypto from 'crypto';
 
+/**
+ * Validates if an external fingerprint value is valid.
+ * Invalid values: null, undefined, empty string, whitespace-only string, zero
+ */
+export function isValidExternalFingerprint(value: unknown): value is string {
+  if (value === null || value === undefined) return false;
+  if (value === 0) return false;
+  if (typeof value !== 'string') return false;
+  if (value.trim() === '') return false;
+  return true;
+}
+
 // Fields that change on each occurrence and should be ignored in fingerprint
 const DYNAMIC_FIELDS = new Set([
   'timestamp', 'occurredAt', 'createdAt', 'updatedAt', 'time', 'date',

@@ -2,7 +2,7 @@ import Fastify, { FastifyInstance } from 'fastify';
 import type { LineuConfig } from './types.js';
 import type { LineuDatabase } from './db.js';
 import type { LinearService } from './services/linear.js';
-import { generateFingerprint } from './lib/fingerprint.js';
+import { generateFingerprint, isValidExternalFingerprint } from './lib/fingerprint.js';
 import { registerDashboard } from './dashboard/routes.js';
 
 export async function createServer(
@@ -20,7 +20,12 @@ export async function createServer(
       return reply.status(400).send({ error: 'Empty or invalid JSON payload' });
     }
 
-    const fingerprint = generateFingerprint(payload);
+    // Use external fingerprint if valid, otherwise generate automatically
+    const externalFingerprint = payload.fingerprint;
+    const fingerprint = isValidExternalFingerprint(externalFingerprint)
+      ? externalFingerprint
+      : generateFingerprint(payload);
+
     const jobId = db.insertJob(payload, fingerprint);
 
     return reply.status(202).send({
