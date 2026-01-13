@@ -29,3 +29,8 @@
 - **Tested**: config.ts - loadConfig() throws when repository path is missing
 - **Coverage**: 13.38% statements overall, config.ts at 74.07%
 - **Learning**: Common first-run error. Validates both override path and LINEU_REPO env are checked. Still uncovered: teams type validation, default config path not found (returns null), getDefaultConfigPath/getDefaultDatabasePath.
+
+## Iteration 7
+- **Tested**: config.ts - loadConfigFile() throws when teams array contains non-string values
+- **Coverage**: 13.74% statements overall, config.ts at 81.48%
+- **Learning**: Users editing config.yml may accidentally use numbers or other types. This validates the typed teams array. Still uncovered: getDefaultConfigPath/getDefaultDatabasePath (minor utilities), default config not found path (returns null silently).
