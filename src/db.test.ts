@@ -116,4 +116,47 @@ describe('createDatabase', () => {
     expect(job?.status).toBe('duplicate');
     expect(job?.linear_identifier).toBe('TEAM-99');
   });
+
+  it('getRecentJobs returns job history for dashboard with processing duration', () => {
+    // Users view the dashboard to monitor job processing status
+
+    // Create jobs in various states
+    const job1 = db.insertJob({ message: 'First error' }, 'hash-1');
+    const job2 = db.insertJob({ message: 'Second error' }, 'hash-2');
+    const job3 = db.insertJob({ message: 'Third error' }, 'hash-3');
+
+    // Complete job1 (success)
+    db.claimNextJob();
+    db.markCompleted(job1, 'issue-1', 'ENG-100', '{"summary":"Fixed"}');
+
+    // Fail job2 (error)
+    db.claimNextJob();
+    db.markFailed(job2, 'Claude timeout');
+
+    // Leave job3 pending
+
+    // Fetch recent jobs for dashboard display
+    const recentJobs = db.getRecentJobs();
+
+    // Most recent first (job3 created last)
+    expect(recentJobs.length).toBe(3);
+
+    // Pending job - no duration yet
+    const pendingJob = recentJobs.find(j => j.id === job3);
+    expect(pendingJob?.status).toBe('pending');
+    expect(pendingJob?.duration_seconds).toBeNull();
+    expect(pendingJob?.processed_at).toBeNull();
+
+    // Completed job - has Linear identifier and duration
+    const completedJob = recentJobs.find(j => j.id === job1);
+    expect(completedJob?.status).toBe('completed');
+    expect(completedJob?.linear_identifier).toBe('ENG-100');
+    expect(completedJob?.duration_seconds).toBeDefined();
+
+    // Failed job - has error message and duration
+    const failedJob = recentJobs.find(j => j.id === job2);
+    expect(failedJob?.status).toBe('failed');
+    expect(failedJob?.error).toBe('Claude timeout');
+    expect(failedJob?.processed_at).toBeDefined();
+  });
 });
