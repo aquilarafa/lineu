@@ -159,4 +159,32 @@ describe('createDatabase', () => {
     expect(failedJob?.error).toBe('Claude timeout');
     expect(failedJob?.processed_at).toBeDefined();
   });
+
+  it('dry-run completes job with analysis but no Linear issue', () => {
+    // Users run --dry-run to test the system without creating real Linear issues
+    // This is recommended before going live to verify analysis quality
+
+    const jobId = db.insertJob({ message: 'Test error for dry-run' }, 'dry-run-hash');
+    db.claimNextJob();
+
+    // Worker completes in dry-run mode (no Linear issue ID)
+    const analysis = '{"root_cause":"Missing null check","fix":"Add validation"}';
+    db.markCompletedDryRun(jobId, analysis);
+
+    // Job is completed
+    const job = db.getJob(jobId);
+    expect(job?.status).toBe('completed');
+    expect(job?.processed_at).toBeDefined();
+
+    // Analysis is stored for user review
+    expect(job?.analysis).toBe(analysis);
+
+    // No Linear issue created (dry-run mode)
+    expect(job?.linear_issue_id).toBeNull();
+    expect(job?.linear_identifier).toBeNull();
+
+    // Stats count it as completed
+    const stats = db.getStats();
+    expect(stats.completed).toBe(1);
+  });
 });
