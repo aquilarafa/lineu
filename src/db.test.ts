@@ -187,4 +187,39 @@ describe('createDatabase', () => {
     const stats = db.getStats();
     expect(stats.completed).toBe(1);
   });
+
+  it('getTimeline returns hourly aggregates for dashboard activity chart', () => {
+    // Dashboard shows an activity chart so users can visualize error volume over time
+    // Timeline groups jobs by hour for the last 24 hours
+
+    // Create multiple jobs (all within current hour since created_at is now)
+    const job1 = db.insertJob({ message: 'Error 1' }, 'hash-1');
+    const job2 = db.insertJob({ message: 'Error 2' }, 'hash-2');
+    const job3 = db.insertJob({ message: 'Error 3' }, 'hash-3');
+
+    // Complete job1
+    db.claimNextJob();
+    db.markCompleted(job1, 'issue-1', 'ENG-1', '{"summary":"Fixed"}');
+
+    // Fail job2
+    db.claimNextJob();
+    db.markFailed(job2, 'API error');
+
+    // Leave job3 pending
+
+    // Fetch timeline for dashboard
+    const timeline = db.getTimeline();
+
+    // Should have at least one hour bucket with our jobs
+    expect(timeline.length).toBeGreaterThan(0);
+
+    // Current hour should contain all 3 jobs
+    const currentHourEntry = timeline[timeline.length - 1]; // Most recent
+    expect(currentHourEntry.total).toBe(3);
+    expect(currentHourEntry.completed).toBe(1);
+    expect(currentHourEntry.failed).toBe(1);
+
+    // Hour format is YYYY-MM-DD HH:00
+    expect(currentHourEntry.hour).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:00$/);
+  });
 });
