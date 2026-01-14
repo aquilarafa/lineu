@@ -23,7 +23,7 @@ docker run -d \
   lineu serve --repo /repo
 ```
 
-### Opção 2: Repositório remoto
+### Opção 2: Repositório remoto (público)
 
 ```bash
 docker run -d \
@@ -37,7 +37,9 @@ docker run -d \
   lineu serve --repo-url https://github.com/org/repo.git
 ```
 
-Para repositórios privados via SSH:
+### Opção 3: Repositório privado
+
+Use `GITHUB_TOKEN` para autenticar:
 
 ```bash
 docker run -d \
@@ -45,10 +47,14 @@ docker run -d \
   -p 3000:3000 \
   -e ANTHROPIC_API_KEY=sk-ant-xxx \
   -e LINEAR_API_KEY=lin_api_xxx \
+  -e GITHUB_TOKEN=ghp_xxxxxxxxxxxx \
+  -e DASHBOARD_USER=admin \
+  -e DASHBOARD_PASS=senha-segura \
   -v lineu-data:/home/lineu/.lineu \
-  -v ~/.ssh:/home/lineu/.ssh:ro \
-  lineu serve --repo-url git@github.com:org/repo.git
+  lineu serve --repo-url https://github.com/org/private-repo.git
 ```
+
+Para criar o token: GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token com permissão `Contents: Read-only` no repositório desejado.
 
 ## Variáveis de Ambiente
 
@@ -56,10 +62,13 @@ docker run -d \
 |----------|-------------|-----------|
 | `ANTHROPIC_API_KEY` | Sim* | API key da Anthropic para Claude Code |
 | `LINEAR_API_KEY` | Sim | API key do Linear |
+| `GITHUB_TOKEN` | Não** | Token para clonar repositórios privados |
 | `DASHBOARD_USER` | Não | Usuário para dashboard |
 | `DASHBOARD_PASS` | Não | Senha para dashboard |
 
 *`ANTHROPIC_API_KEY` é obrigatória para deploy em servidor (headless). Localmente, você pode usar `claude /login` para autenticar via browser. Obtenha sua API key em https://console.anthropic.com/
+
+**`GITHUB_TOKEN` só é necessário para repositórios privados via `--repo-url`.
 
 ## Volumes
 
@@ -67,9 +76,8 @@ docker run -d \
 |--------|-------------|-----------|
 | `/home/lineu/.lineu` | Sim | Banco SQLite e logs |
 | `/repo` | Não* | Repositório local para análise |
-| `/home/lineu/.ssh` | Não* | Chaves SSH para repos privados |
 
-*Use `/repo` com `--repo` ou `.ssh` com `--repo-url` para repos privados.
+*Use `/repo` com `--repo` para montar um repositório local.
 
 ## Verificar
 

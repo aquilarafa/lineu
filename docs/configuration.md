@@ -29,6 +29,7 @@ teams:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `LINEAR_API_KEY` | Yes | Linear API key for creating issues |
+| `GITHUB_TOKEN` | No | GitHub token for cloning private repositories |
 | `DASHBOARD_USER` | No | Username for dashboard authentication |
 | `DASHBOARD_PASS` | No | Password for dashboard authentication |
 
@@ -36,6 +37,7 @@ teams:
 
 ```bash
 LINEAR_API_KEY=lin_api_xxxxxxxxxxxx
+GITHUB_TOKEN=ghp_xxxxxxxxxxxx
 DASHBOARD_USER=admin
 DASHBOARD_PASS=secure-password
 ```
