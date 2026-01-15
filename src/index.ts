@@ -8,7 +8,7 @@ import { LinearService } from './services/linear.js';
 import { startWorker } from './worker.js';
 import { createServer } from './server.js';
 import { generateFingerprint } from './lib/fingerprint.js';
-import { cloneRepository } from './lib/git.js';
+import { cloneRepository, resolveRepoOptions } from './lib/git.js';
 
 program
   .name('lineu')
@@ -24,15 +24,16 @@ program
   .option('-c, --config <path>', 'Path to config file (default: ~/.lineu/config.yml)')
   .option('--dry-run', 'Process jobs but do not create Linear issues')
   .action(async (opts) => {
-    // Resolve repository path
-    let repoPath = opts.repo;
+    // Resolve repository path (CLI args > env vars)
+    const resolved = resolveRepoOptions(opts);
+    let repoPath = resolved.path;
 
-    if (opts.repoUrl) {
-      repoPath = await cloneRepository(opts.repoUrl);
+    if (resolved.url) {
+      repoPath = await cloneRepository(resolved.url);
     }
 
     if (!repoPath) {
-      console.error('Error: Either --repo or --repo-url is required');
+      console.error('Error: Either --repo, --repo-url, REPO_PATH, or REPO_URL is required');
       process.exit(1);
     }
 
@@ -99,14 +100,16 @@ program
   .option('-c, --config <path>', 'Path to config file (default: ~/.lineu/config.yml)')
   .option('--dry-run', "Don't create Linear card")
   .action(async (opts) => {
-    let repoPath = opts.repo;
+    // Resolve repository path (CLI args > env vars)
+    const resolved = resolveRepoOptions(opts);
+    let repoPath = resolved.path;
 
-    if (opts.repoUrl) {
-      repoPath = await cloneRepository(opts.repoUrl);
+    if (resolved.url) {
+      repoPath = await cloneRepository(resolved.url);
     }
 
     if (!repoPath) {
-      console.error('Error: Either --repo or --repo-url is required');
+      console.error('Error: Either --repo, --repo-url, REPO_PATH, or REPO_URL is required');
       process.exit(1);
     }
 

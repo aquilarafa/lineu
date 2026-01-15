@@ -1,0 +1,29 @@
+services:
+  lineu:
+    build: .
+    container_name: lineu
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - LINEAR_API_KEY=${LINEAR_API_KEY}
+      - REPO_URL=${REPO_URL:-}
+      - REPO_PATH=${REPO_PATH:-}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - DASHBOARD_USER=${DASHBOARD_USER:-admin}
+      - DASHBOARD_PASS=${DASHBOARD_PASS:-}
+    volumes:
+      - lineu-data:/home/lineu/.lineu
+      # Para repositório local, descomente e configure:
+      # - /caminho/do/repo:/repo
+      # E defina REPO_PATH=/repo no .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  lineu-data:

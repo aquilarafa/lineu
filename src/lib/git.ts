@@ -3,6 +3,27 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
+export interface RepoOptions {
+  repo?: string;
+  repoUrl?: string;
+}
+
+export interface ResolvedRepo {
+  path?: string;
+  url?: string;
+}
+
+/**
+ * Resolves repository path from CLI options and environment variables.
+ * Priority: CLI args > environment variables
+ */
+export function resolveRepoOptions(opts: RepoOptions): ResolvedRepo {
+  return {
+    path: opts.repo || process.env.REPO_PATH || undefined,
+    url: opts.repoUrl || process.env.REPO_URL || undefined,
+  };
+}
+
 function injectGithubToken(url: string): string {
   const token = process.env.GITHUB_TOKEN;
   if (!token) return url;

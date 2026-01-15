@@ -1,12 +1,38 @@
 # Deploy com Docker
 
-## Build
+## Docker Compose (recomendado)
+
+```bash
+# Copie e configure as variáveis
+cp .env.example .env
+
+# Edite .env com suas credenciais
+# ANTHROPIC_API_KEY, LINEAR_API_KEY, REPO_URL, etc.
+
+# Inicie
+docker compose up -d
+
+# Logs
+docker compose logs -f
+
+# Parar
+docker compose down
+```
+
+Para usar repositório local, edite `docker-compose.yml`:
+```yaml
+volumes:
+  - /caminho/do/repo:/repo
+command: ["serve", "--repo", "/repo"]
+```
+
+## Build Manual
 
 ```bash
 docker build -t lineu .
 ```
 
-## Run
+## Run Manual
 
 ### Opção 1: Repositório local
 
